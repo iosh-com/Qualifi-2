@@ -12,8 +12,8 @@ export interface AdminAuthConfig {
 }
 
 const DEFAULT_ADMIN_AUTH: AdminAuthConfig = {
-  adminId: 'admin',
-  adminPasswordHash: 'qualifi2026',
+  adminId: 'QHSTC5305',
+  adminPasswordHash: 'QUALIFI03.',
   lastUpdated: new Date().toISOString()
 };
 
@@ -47,14 +47,8 @@ export function validateAdminLogin(inputAdminId: string, inputPassword: string):
   const trimmedId = inputAdminId.trim().toLowerCase();
   const trimmedPass = inputPassword.trim();
 
-  const matchesCurrent = 
-    (trimmedId === current.adminId.toLowerCase() || (current.adminId.toLowerCase() === 'admin' && trimmedId === 'admin@qualifi.co.uk')) &&
-    trimmedPass === current.adminPasswordHash;
-
-  // Master fallback if ever reset:
-  const isMasterDefault = (trimmedId === 'admin' || trimmedId === 'admin@qualifi.co.uk') && trimmedPass === 'qualifi2026';
-
-  return matchesCurrent || isMasterDefault;
+  // Strict private match against configured credentials
+  return trimmedId === current.adminId.trim().toLowerCase() && trimmedPass === current.adminPasswordHash.trim();
 }
 
 // Generate canonical Verification URL

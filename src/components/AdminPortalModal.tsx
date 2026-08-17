@@ -441,21 +441,24 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
             <div className="space-y-1">
               <h4 className="text-xl font-bold text-slate-900">Admin Authentication</h4>
               <p className="text-xs text-slate-500">
-                Enter your Admin ID and Password to manage student records, generate QR codes, and sync with Supabase.
+                Enter your authorized Admin ID and Password to access the registry management system.
               </p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <form onSubmit={handleLogin} className="space-y-4 text-left" autoComplete="off">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Admin ID / Username
+                  Admin ID
                 </label>
                 <input
                   type="text"
                   value={adminIdInput}
                   onChange={(e) => setAdminIdInput(e.target.value)}
-                  placeholder="admin"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#1456A0] focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm font-medium"
+                  placeholder="Enter Admin ID"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-[#1456A0] focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm font-medium font-mono"
                   autoFocus
                   required
                 />
@@ -470,7 +473,10 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     value={adminPasswordInput}
                     onChange={(e) => setAdminPasswordInput(e.target.value)}
-                    placeholder="Enter password (default: qualifi2026)"
+                    placeholder="Enter Admin Password"
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-300 focus:border-[#1456A0] focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm font-mono"
                     required
                   />
@@ -487,7 +493,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               {authError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                  <span>Invalid ID or password. Default login is <strong>admin</strong> / <strong>qualifi2026</strong></span>
+                  <span>Access Denied: Invalid Admin ID or Password.</span>
                 </div>
               )}
 
@@ -499,13 +505,6 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 <span>Sign In to Admin Portal</span>
               </button>
             </form>
-
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left text-[11px] text-slate-600 space-y-1">
-              <span className="font-semibold block text-slate-800">Default Credentials:</span>
-              <div>• Admin ID: <code className="text-[#1456A0] font-bold">admin</code></div>
-              <div>• Password: <code className="text-[#1456A0] font-bold">qualifi2026</code></div>
-              <p className="text-slate-500 pt-1">You can customize your ID and password once logged in under the "Security" tab.</p>
-            </div>
           </div>
         ) : (
           <div className="flex flex-col flex-1 overflow-hidden">
