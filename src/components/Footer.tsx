@@ -97,6 +97,20 @@ export const Footer: React.FC<FooterProps> = ({
                   <span className="text-[#D6A84F]">›</span> Contact Registry
                 </button>
               </li>
+              <li className="pt-1 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenAdmin();
+                  }}
+                  className="text-slate-400 hover:text-amber-300 transition flex items-center gap-1.5 cursor-pointer text-xs group"
+                >
+                  <Lock className="w-3 h-3 text-[#D6A84F] group-hover:text-amber-300 transition-colors" />
+                  <span>Admin Portal</span>
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -181,12 +195,17 @@ export const Footer: React.FC<FooterProps> = ({
             <button
               id="admin-lock-button"
               type="button"
-              onClick={onOpenAdmin}
-              className="text-slate-500 hover:text-amber-400 p-1.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer inline-flex items-center justify-center"
-              title="Admin Portal"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenAdmin();
+              }}
+              className="relative z-20 px-2.5 py-1 text-slate-300 hover:text-amber-300 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 hover:border-amber-500/50 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-xs active:scale-95 group"
+              title="Official Administration Portal"
               aria-label="Admin Portal"
             >
-              <Lock className="w-3.5 h-3.5" />
+              <Lock className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-semibold tracking-wide">Admin</span>
             </button>
           </div>
         </div>

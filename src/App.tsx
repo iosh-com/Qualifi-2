@@ -166,12 +166,12 @@ export default function App() {
       />
 
       {/* Floating Quick Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-3 no-print">
+      <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-3 no-print pointer-events-none">
         {/* Floating Quick Verify Trigger (when not on verify page) */}
         {activePage !== 'verify' && (
           <button
             onClick={() => handleNavigate('verify')}
-            className="px-4 py-3 bg-gradient-to-r from-[#1456A0] to-[#0B1F3A] text-white font-bold text-xs rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-blue-400/30 cursor-pointer"
+            className="pointer-events-auto px-4 py-3 bg-gradient-to-r from-[#1456A0] to-[#0B1F3A] text-white font-bold text-xs rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-blue-400/30 cursor-pointer"
             title="Instant Certificate Verification"
           >
             <ShieldCheck className="w-4 h-4 text-[#D6A84F]" />
@@ -183,7 +183,7 @@ export default function App() {
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="p-3 bg-white text-slate-700 hover:text-[#1456A0] rounded-full shadow-lg border border-slate-200 transition-all hover:bg-slate-50 cursor-pointer"
+            className="pointer-events-auto p-3 bg-white text-slate-700 hover:text-[#1456A0] rounded-full shadow-lg border border-slate-200 transition-all hover:bg-slate-50 cursor-pointer"
             aria-label="Scroll to top"
           >
             <ArrowUp className="w-4 h-4" />
