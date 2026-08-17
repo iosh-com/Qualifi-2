@@ -1,0 +1,6 @@
+{
+  "name": "Qualifi Health & Safety Training Centre",
+  "description": "Official portal for Qualifi Health & Safety Training Centre featuring secure online certificate verification, comprehensive HSE course listings, and training services.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

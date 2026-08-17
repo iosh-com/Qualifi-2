@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+.font-serif-seal {
+  font-family: 'Cinzel', Georgia, serif;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Security Hologram & Watermark Styling */
+.security-guilloche-bg {
+  background-color: #ffffff;
+  background-image: radial-gradient(#1456A0 0.75px, transparent 0.75px), radial-gradient(#D6A84F 0.75px, #ffffff 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  background-opacity: 0.04;
+}
+
+.hologram-shimmer {
+  background: linear-gradient(
+    135deg,
+    rgba(214, 168, 79, 0.15) 0%,
+    rgba(20, 86, 160, 0.25) 25%,
+    rgba(25, 118, 210, 0.2) 50%,
+    rgba(214, 168, 79, 0.3) 75%,
+    rgba(20, 86, 160, 0.15) 100%
+  );
+  background-size: 200% 200%;
+}
+
+/* Print Specific Layout */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .certificate-print-container {
+    box-shadow: none !important;
+    border: 2px solid #0B1F3A !important;
+    page-break-inside: avoid;
+    margin: 0 !important;
+    padding: 24px !important;
+    width: 100% !important;
+  }
+}
+
