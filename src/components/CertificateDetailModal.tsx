@@ -40,13 +40,6 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-[#1456A0] hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print Document</span>
-            </button>
-            <button
               onClick={onClose}
               className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition cursor-pointer"
               title="Close Modal"
@@ -199,17 +192,10 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={handlePrint}
-              className="px-5 py-2.5 bg-[#0B1F3A] hover:bg-[#1456A0] text-white text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm"
-            >
-              <Printer className="w-4 h-4 text-[#D6A84F]" />
-              <span>Print Official Certificate</span>
-            </button>
-            <button
               onClick={onClose}
-              className="px-4 py-2.5 bg-white hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition cursor-pointer"
+              className="px-6 py-2.5 bg-[#0B1F3A] hover:bg-[#1456A0] text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-sm"
             >
-              Close
+              Close Window
             </button>
           </div>
         </div>

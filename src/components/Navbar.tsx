@@ -61,17 +61,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="flex items-center gap-3 text-[11px]">
-            <span className="hidden sm:inline-block text-blue-200 font-medium">
+            <span className="text-blue-200 font-medium">
               Official UK Health & Safety Training Verification Portal
             </span>
-            <button
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition cursor-pointer"
-              title="Admin Registry Portal"
-            >
-              <Lock className="w-3 h-3 text-[#D6A84F]" />
-              <span>Admin Access</span>
-            </button>
           </div>
         </div>
       </div>
@@ -182,9 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Email: hiqual.com.uk@gmail.com</span>
-            <button onClick={onOpenAdmin} className="text-[#1456A0] font-semibold underline">
-              Admin Portal
-            </button>
+            <span>UK Training Registry</span>
           </div>
         </div>
       )}

@@ -157,10 +157,48 @@ export function saveLocalCertificates(certs: Certificate[]): void {
 }
 
 /**
- * Fetch all certificates: queries Supabase if connected, else returns local registry.
+ * Background helper to sync any local records up to Supabase so they are never lost.
+ */
+async function syncLocalToSupabase(localCerts: Certificate[]): Promise<void> {
+  const client = getSupabase();
+  if (!client || localCerts.length === 0) return;
+
+  for (const cert of localCerts) {
+    try {
+      const dbRow = {
+        certificate_number: cert.certificate_number,
+        student_name: cert.student_name,
+        father_name: cert.father_name || '',
+        course_name: cert.course_name,
+        course_level: cert.course_level || 'Level 3',
+        issue_date: cert.issue_date,
+        date_of_birth: cert.date_of_birth || null,
+        completion_date: cert.completion_date || null,
+        instructor_name: cert.instructor_name || 'Training Department',
+        institute_name: cert.institute_name || cert.training_provider || 'Qualifi Health & Safety Training Centre',
+        status: cert.status || cert.certificate_status || 'VALID',
+        verification_url: cert.verification_url || generateVerificationUrl(cert.certificate_number),
+        qr_code_url: cert.qr_code_url,
+        remarks: cert.remarks || 'Official registered qualification record.'
+      };
+
+      await client
+        .from('certificates')
+        .upsert([dbRow], { onConflict: 'certificate_number' });
+    } catch (err) {
+      console.warn(`Sync failed for ${cert.certificate_number}:`, err);
+    }
+  }
+}
+
+/**
+ * Fetch all certificates: queries Supabase if connected and merges with local registry.
+ * Ensures data is PERMANENT and never wiped out.
  */
 export async function fetchAllCertificates(): Promise<Certificate[]> {
+  const localList = getLocalCertificates();
   const client = getSupabase();
+
   if (client) {
     try {
       const { data, error } = await client
@@ -169,20 +207,43 @@ export async function fetchAllCertificates(): Promise<Certificate[]> {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        const normalized = data.map(normalizeCertificateRow);
-        // Also keep local cache updated for offline resilience
-        saveLocalCertificates(normalized);
-        return normalized;
+        const supabaseCerts = data.map(normalizeCertificateRow);
+        
+        // Merge: take all Supabase certs, and any local certs not yet in Supabase
+        const certMap = new Map<string, Certificate>();
+        
+        // First add local certs
+        for (const loc of localList) {
+          certMap.set(loc.certificate_number.toUpperCase().trim(), loc);
+        }
+
+        // Then overwrite with Supabase records (source of truth)
+        for (const sb of supabaseCerts) {
+          certMap.set(sb.certificate_number.toUpperCase().trim(), sb);
+        }
+
+        const merged = Array.from(certMap.values());
+        saveLocalCertificates(merged);
+
+        // If there were local certs not yet in Supabase, auto-sync them up now
+        const unsyncedLocals = localList.filter(
+          loc => !supabaseCerts.some(s => s.certificate_number.toUpperCase().trim() === loc.certificate_number.toUpperCase().trim())
+        );
+        if (unsyncedLocals.length > 0) {
+          syncLocalToSupabase(unsyncedLocals).catch(console.warn);
+        }
+
+        return merged;
       }
       if (error) {
-        console.warn('Supabase fetch error, using local store:', error.message);
+        console.warn('Supabase fetch error, maintaining local store:', error.message);
       }
     } catch (err) {
-      console.warn('Supabase fetch exception, using local store:', err);
+      console.warn('Supabase fetch exception, maintaining local store:', err);
     }
   }
 
-  return getLocalCertificates();
+  return localList;
 }
 
 /**
@@ -383,7 +444,7 @@ export async function addCertificate(payload: NewCertificatePayload): Promise<{ 
 
       const { data, error } = await client
         .from('certificates')
-        .insert([dbRow])
+        .upsert([dbRow], { onConflict: 'certificate_number' })
         .select()
         .single();
 
