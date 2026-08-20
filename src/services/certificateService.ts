@@ -7,7 +7,7 @@ const ADMIN_AUTH_KEY = 'qualifi_admin_auth_v1';
 
 export interface AdminAuthConfig {
   adminId: string;
-  adminPasswordHash: string; // plain or custom password string
+  adminPasswordHash: string;
   lastUpdated: string;
 }
 
@@ -47,7 +47,6 @@ export function validateAdminLogin(inputAdminId: string, inputPassword: string):
   const trimmedId = inputAdminId.trim().toLowerCase();
   const trimmedPass = inputPassword.trim();
 
-  // Strict private match against configured credentials
   return trimmedId === current.adminId.trim().toLowerCase() && trimmedPass === current.adminPasswordHash.trim();
 }
 
@@ -79,7 +78,6 @@ export async function generateCertificateQRCode(verificationUrlOrCertNum: string
     });
   } catch (err) {
     console.error('Error generating QR code:', err);
-    // Fallback public QR generator API URL
     const targetUrl = verificationUrlOrCertNum.startsWith('http') 
       ? verificationUrlOrCertNum 
       : generateVerificationUrl(verificationUrlOrCertNum);
@@ -100,7 +98,27 @@ export function generateVerificationHash(cert: Certificate): string {
   return `QSEC-${hex}-${cert.certificate_number.replace(/[^a-zA-Z0-9]/g, '').slice(-4)}`;
 }
 
-// Helper to normalize database rows from Supabase to Certificate model
+// Helper to sanitize dates for PostgreSQL
+function sanitizeDate(dateStr: string | undefined | null): string | null {
+  if (!dateStr) return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed || trimmed === '') return null;
+  // If valid format (e.g. YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    return trimmed.split('T')[0];
+  }
+  try {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+// Helper to normalize database rows from Supabase or Local Storage
 function normalizeCertificateRow(row: any): Certificate {
   const certNumber = row.certificate_number || row.Certificate_Number || '';
   const status = (row.status || row.Status || row.certificate_status || 'VALID').toUpperCase();
@@ -108,7 +126,7 @@ function normalizeCertificateRow(row: any): Certificate {
   const verificationUrl = row.verification_url || row.Verification_URL || generateVerificationUrl(certNumber);
 
   return {
-    id: row.id || `cert-${certNumber}`,
+    id: row.id ? String(row.id) : `cert-${certNumber}`,
     certificate_number: certNumber,
     student_name: row.student_name || row.Student_Name || '',
     father_name: row.father_name || row.Father_Name || '',
@@ -126,13 +144,13 @@ function normalizeCertificateRow(row: any): Certificate {
     verification_url: verificationUrl,
     certificate_url: verificationUrl,
     qr_code_url: row.qr_code_url || row.QR_Code_URL || '',
-    remarks: row.remarks || row.Remarks || '',
+    remarks: row.remarks || row.Remarks || 'Official registered qualification record.',
     created_at: row.created_at || new Date().toISOString(),
     updated_at: row.updated_at || new Date().toISOString()
   };
 }
 
-// Local store helpers
+// Local storage helpers
 export function getLocalCertificates(): Certificate[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -157,43 +175,7 @@ export function saveLocalCertificates(certs: Certificate[]): void {
 }
 
 /**
- * Background helper to sync any local records up to Supabase so they are never lost.
- */
-async function syncLocalToSupabase(localCerts: Certificate[]): Promise<void> {
-  const client = getSupabase();
-  if (!client || localCerts.length === 0) return;
-
-  for (const cert of localCerts) {
-    try {
-      const dbRow = {
-        certificate_number: cert.certificate_number,
-        student_name: cert.student_name,
-        father_name: cert.father_name || '',
-        course_name: cert.course_name,
-        course_level: cert.course_level || 'Level 3',
-        issue_date: cert.issue_date,
-        date_of_birth: cert.date_of_birth || null,
-        completion_date: cert.completion_date || null,
-        instructor_name: cert.instructor_name || 'Training Department',
-        institute_name: cert.institute_name || cert.training_provider || 'Qualifi Health & Safety Training Centre',
-        status: cert.status || cert.certificate_status || 'VALID',
-        verification_url: cert.verification_url || generateVerificationUrl(cert.certificate_number),
-        qr_code_url: cert.qr_code_url,
-        remarks: cert.remarks || 'Official registered qualification record.'
-      };
-
-      await client
-        .from('certificates')
-        .upsert([dbRow], { onConflict: 'certificate_number' });
-    } catch (err) {
-      console.warn(`Sync failed for ${cert.certificate_number}:`, err);
-    }
-  }
-}
-
-/**
- * Fetch all certificates: queries Supabase if connected and merges with local registry.
- * Ensures data is PERMANENT and never wiped out.
+ * Fetch all certificates: queries Supabase if configured and merges with local backup.
  */
 export async function fetchAllCertificates(): Promise<Certificate[]> {
   const localList = getLocalCertificates();
@@ -206,40 +188,29 @@ export async function fetchAllCertificates(): Promise<Certificate[]> {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (!error && data && Array.isArray(data)) {
         const supabaseCerts = data.map(normalizeCertificateRow);
         
-        // Merge: take all Supabase certs, and any local certs not yet in Supabase
+        // Merge: Supabase records are the source of truth
         const certMap = new Map<string, Certificate>();
         
-        // First add local certs
         for (const loc of localList) {
           certMap.set(loc.certificate_number.toUpperCase().trim(), loc);
         }
 
-        // Then overwrite with Supabase records (source of truth)
         for (const sb of supabaseCerts) {
           certMap.set(sb.certificate_number.toUpperCase().trim(), sb);
         }
 
         const merged = Array.from(certMap.values());
         saveLocalCertificates(merged);
-
-        // If there were local certs not yet in Supabase, auto-sync them up now
-        const unsyncedLocals = localList.filter(
-          loc => !supabaseCerts.some(s => s.certificate_number.toUpperCase().trim() === loc.certificate_number.toUpperCase().trim())
-        );
-        if (unsyncedLocals.length > 0) {
-          syncLocalToSupabase(unsyncedLocals).catch(console.warn);
-        }
-
         return merged;
       }
       if (error) {
-        console.warn('Supabase fetch error, maintaining local store:', error.message);
+        console.warn('Supabase fetch returned error, using local registry:', error.message);
       }
     } catch (err) {
-      console.warn('Supabase fetch exception, maintaining local store:', err);
+      console.warn('Supabase fetch exception, using local registry:', err);
     }
   }
 
@@ -247,8 +218,7 @@ export async function fetchAllCertificates(): Promise<Certificate[]> {
 }
 
 /**
- * Public Verification Function:
- * Reads certificate number and queries Supabase in real-time. Never returns hardcoded fake data.
+ * Public Verification Function: Queries Supabase in real-time.
  */
 export async function verifyCertificate(
   certificateNumber: string,
@@ -267,26 +237,22 @@ export async function verifyCertificate(
     };
   }
 
-  // Artificial short delay for realistic secure handshake feeling
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Brief delay for smooth verification UX
+  await new Promise((resolve) => setTimeout(resolve, 250));
 
   const client = getSupabase();
 
-  // 1. If Supabase is connected, query the live Supabase database
+  // 1. If Supabase is connected, query live cloud database
   if (client) {
     try {
-      // Search matching certificate_number (case-insensitive)
       const { data, error } = await client
         .from('certificates')
         .select('*')
         .ilike('certificate_number', sanitizedNumber);
 
-      if (error) {
-        console.warn('Supabase query error:', error.message);
-      } else if (data && data.length > 0) {
+      if (!error && data && data.length > 0) {
         const matched = normalizeCertificateRow(data[0]);
 
-        // If optional student name provided, verify match
         if (sanitizedName && !matched.student_name.toLowerCase().includes(sanitizedName)) {
           return {
             state: 'not_found',
@@ -297,7 +263,6 @@ export async function verifyCertificate(
           };
         }
 
-        // Ensure QR code is present
         if (!matched.qr_code_url) {
           matched.qr_code_url = await generateCertificateQRCode(matched.verification_url || matched.certificate_number);
         }
@@ -311,28 +276,19 @@ export async function verifyCertificate(
           verificationHash: generateVerificationHash(matched),
           dataSource: 'supabase'
         };
-      } else {
-        // Not found in Supabase table
-        return {
-          state: 'not_found',
-          data: null,
-          errorMessage: `No certificate found in the database matching "${sanitizedNumber}". Please verify the certificate number.`,
-          searchedQuery: sanitizedNumber,
-          dataSource: 'supabase'
-        };
       }
     } catch (err: any) {
-      console.warn('Supabase connection exception:', err);
+      console.warn('Supabase live query exception:', err);
     }
   }
 
-  // 2. If Supabase is not yet connected, check admin records saved locally
+  // 2. Query local registry store
   const localList = getLocalCertificates();
-  const normalizedTarget = sanitizedNumber.toUpperCase().replace(/\s+/g, '');
+  const normalizedTarget = sanitizedNumber.toUpperCase().replace(/[\s\-_]/g, '');
   
   const found = localList.find((c) => {
-    const certNumNorm = c.certificate_number.toUpperCase().replace(/\s+/g, '');
-    return certNumNorm === normalizedTarget;
+    const certNumNorm = c.certificate_number.toUpperCase().replace(/[\s\-_]/g, '');
+    return certNumNorm === normalizedTarget || c.certificate_number.toUpperCase().trim() === sanitizedNumber.toUpperCase();
   });
 
   if (!found) {
@@ -340,10 +296,10 @@ export async function verifyCertificate(
       state: 'not_found',
       data: null,
       errorMessage: isSupabaseReady() 
-        ? `We could not find a certificate matching "${sanitizedNumber}".` 
-        : `We could not find a certificate matching "${sanitizedNumber}". To load records from Supabase, please configure your Supabase URL and Key in the Admin Portal.`,
+        ? `No certificate record found in the official registry for "${sanitizedNumber}".` 
+        : `No certificate found matching "${sanitizedNumber}". To load records from your Supabase account, please configure your Supabase Project URL and Key in the Admin Portal.`,
       searchedQuery: sanitizedNumber,
-      dataSource: 'local_store'
+      dataSource: isSupabaseReady() ? 'supabase' : 'local_store'
     };
   }
 
@@ -351,7 +307,7 @@ export async function verifyCertificate(
     return {
       state: 'not_found',
       data: null,
-      errorMessage: `Certificate "${sanitizedNumber}" found, but the student name provided does not match records.`,
+      errorMessage: `Certificate "${sanitizedNumber}" found, but the student name does not match records.`,
       searchedQuery: sanitizedNumber,
       dataSource: 'local_store'
     };
@@ -387,24 +343,188 @@ export interface NewCertificatePayload {
   remarks?: string;
 }
 
+export interface AddCertificateResult {
+  success: boolean;
+  savedToSupabase: boolean;
+  data: Certificate;
+  error?: string;
+  warning?: string;
+  missingColumns?: string[];
+}
+
+// Resilient write helper that automatically handles missing columns in Supabase schema cache
+async function resilientSupabaseUpsert(
+  client: any,
+  initialRow: Record<string, any>,
+  conflictField: string = 'certificate_number'
+): Promise<{ success: boolean; data?: any; error?: string; missingColumns?: string[] }> {
+  let currentRow = { ...initialRow };
+  const missingCols: string[] = [];
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    // 1. Try Upsert
+    const { data: upsertData, error: upsertError } = await client
+      .from('certificates')
+      .upsert([currentRow], { onConflict: conflictField })
+      .select('*');
+
+    if (!upsertError && upsertData && upsertData.length > 0) {
+      return { success: true, data: upsertData[0], missingColumns: missingCols };
+    }
+
+    const errCode = upsertError?.code;
+    const errMsg = upsertError?.message || '';
+
+    // Check if error is missing column in PostgREST schema cache (PGRST204 or message)
+    if (errCode === 'PGRST204' || errMsg.includes('column of \'certificates\' in the schema cache') || errMsg.toLowerCase().includes('could not find the')) {
+      const match = errMsg.match(/'([^']+)' column/) || errMsg.match(/column\s+"?([a-zA-Z0-9_]+)"?/i);
+      const missingCol = match ? match[1] : null;
+
+      if (missingCol && missingCol in currentRow) {
+        missingCols.push(missingCol);
+        
+        // If institute_name was missing, try alias training_provider if available
+        if (missingCol === 'institute_name' && !('training_provider' in currentRow) && !missingCols.includes('training_provider')) {
+          currentRow.training_provider = currentRow.institute_name;
+        }
+
+        delete currentRow[missingCol];
+        console.warn(`Supabase missing column '${missingCol}'. Automatically adapting payload (attempt ${attempt + 1})...`);
+        continue;
+      }
+    }
+
+    // 2. If Upsert failed (e.g. no unique constraint on conflictField), try manual lookup and update/insert
+    const certNum = currentRow.certificate_number || initialRow.certificate_number;
+    if (certNum) {
+      const { data: existing } = await client
+        .from('certificates')
+        .select('id')
+        .ilike('certificate_number', certNum);
+
+      if (existing && existing.length > 0) {
+        const { data: updateData, error: updateError } = await client
+          .from('certificates')
+          .update(currentRow)
+          .eq('id', existing[0].id)
+          .select('*');
+
+        if (!updateError && updateData && updateData.length > 0) {
+          return { success: true, data: updateData[0], missingColumns: missingCols };
+        }
+
+        if (updateError) {
+          const m = updateError.message.match(/'([^']+)' column/) || updateError.message.match(/column\s+"?([a-zA-Z0-9_]+)"?/i);
+          if (m && m[1] in currentRow) {
+            missingCols.push(m[1]);
+            delete currentRow[m[1]];
+            continue;
+          }
+        }
+      } else {
+        const { data: insertData, error: insertError } = await client
+          .from('certificates')
+          .insert([currentRow])
+          .select('*');
+
+        if (!insertError && insertData && insertData.length > 0) {
+          return { success: true, data: insertData[0], missingColumns: missingCols };
+        }
+
+        if (insertError) {
+          const m = insertError.message.match(/'([^']+)' column/) || insertError.message.match(/column\s+"?([a-zA-Z0-9_]+)"?/i);
+          if (m && m[1] in currentRow) {
+            missingCols.push(m[1]);
+            delete currentRow[m[1]];
+            continue;
+          }
+          return { success: false, error: `${insertError.message} (Code: ${insertError.code})` };
+        }
+      }
+    }
+
+    if (upsertError) {
+      return { success: false, error: `${upsertError.message} (Code: ${upsertError.code})` };
+    }
+  }
+
+  return { success: false, error: 'Could not adapt record payload to Supabase schema.' };
+}
+
+// Resilient update helper
+async function resilientSupabaseUpdate(
+  client: any,
+  queryTarget: { id?: string; certNumber?: string },
+  initialUpdates: Record<string, any>
+): Promise<{ success: boolean; data?: any; error?: string; missingColumns?: string[] }> {
+  let currentUpdates = { ...initialUpdates };
+  const missingCols: string[] = [];
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    let query = client.from('certificates').update(currentUpdates);
+    if (queryTarget.id && !queryTarget.id.startsWith('cert-')) {
+      query = query.eq('id', queryTarget.id);
+    } else if (queryTarget.certNumber) {
+      query = query.ilike('certificate_number', queryTarget.certNumber);
+    } else if (queryTarget.id) {
+      query = query.eq('id', queryTarget.id);
+    }
+
+    const { data, error } = await query.select('*');
+
+    if (!error && data && data.length > 0) {
+      return { success: true, data: data[0], missingColumns: missingCols };
+    }
+
+    if (error) {
+      const errMsg = error.message || '';
+      if (error.code === 'PGRST204' || errMsg.includes('column of \'certificates\' in the schema cache') || errMsg.toLowerCase().includes('could not find the')) {
+        const match = errMsg.match(/'([^']+)' column/) || errMsg.match(/column\s+"?([a-zA-Z0-9_]+)"?/i);
+        const missingCol = match ? match[1] : null;
+
+        if (missingCol && missingCol in currentUpdates) {
+          missingCols.push(missingCol);
+          delete currentUpdates[missingCol];
+          console.warn(`Supabase update missing column '${missingCol}'. Adapting update (attempt ${attempt + 1})...`);
+          continue;
+        }
+      }
+      return { success: false, error: `${error.message} (Code: ${error.code})` };
+    }
+
+    return { success: false, error: 'No matching record found in Supabase to update.' };
+  }
+
+  return { success: false, error: 'Could not complete update in Supabase.' };
+}
+
 /**
- * Add a new certificate to Supabase with auto-generated verification URL and QR code.
+ * Add a new certificate: stores locally and automatically persists to Supabase cloud.
  */
-export async function addCertificate(payload: NewCertificatePayload): Promise<{ success: boolean; data: Certificate; error?: string }> {
-  const certNumber = payload.certificate_number.trim();
+export async function addCertificate(
+  payload: NewCertificatePayload
+): Promise<{
+  success: boolean;
+  savedToSupabase: boolean;
+  data: Certificate;
+  error?: string;
+  warning?: string;
+  missingColumns?: string[];
+}> {
+  const certNumber = payload.certificate_number.trim().toUpperCase();
   const verificationUrl = generateVerificationUrl(certNumber);
   const qrCodeUrl = await generateCertificateQRCode(verificationUrl);
 
   const newRecord: Certificate = {
-    id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: `cert-${certNumber}`,
     certificate_number: certNumber,
     student_name: payload.student_name.trim(),
-    father_name: (payload.father_name || '').trim(),
+    father_name: payload.father_name?.trim() || '',
     course_name: payload.course_name.trim(),
     course_level: payload.course_level || 'Level 3',
-    issue_date: payload.issue_date || new Date().toISOString().split('T')[0],
-    date_of_birth: payload.date_of_birth || '',
-    completion_date: payload.completion_date || payload.issue_date || new Date().toISOString().split('T')[0],
+    issue_date: sanitizeDate(payload.issue_date) || new Date().toISOString().split('T')[0],
+    date_of_birth: sanitizeDate(payload.date_of_birth) || '',
+    completion_date: sanitizeDate(payload.completion_date) || sanitizeDate(payload.issue_date) || new Date().toISOString().split('T')[0],
     instructor_name: payload.instructor_name || 'Training Department',
     institute_name: payload.institute_name || 'Qualifi Health & Safety Training Centre',
     training_provider: payload.institute_name || 'Qualifi Health & Safety Training Centre',
@@ -419,69 +539,80 @@ export async function addCertificate(payload: NewCertificatePayload): Promise<{ 
     updated_at: new Date().toISOString()
   };
 
+  // Always store in local cache first so admin never loses the record
+  const currentList = getLocalCertificates().filter(
+    c => c.certificate_number.toUpperCase().trim() !== certNumber.toUpperCase()
+  );
+  saveLocalCertificates([newRecord, ...currentList]);
+
   const client = getSupabase();
-  let supabaseSuccess = false;
-  let supabaseErrorMsg = '';
-
-  if (client) {
-    try {
-      const dbRow = {
-        certificate_number: newRecord.certificate_number,
-        student_name: newRecord.student_name,
-        father_name: newRecord.father_name,
-        course_name: newRecord.course_name,
-        course_level: newRecord.course_level,
-        issue_date: newRecord.issue_date,
-        date_of_birth: newRecord.date_of_birth || null,
-        completion_date: newRecord.completion_date || null,
-        instructor_name: newRecord.instructor_name,
-        institute_name: newRecord.institute_name,
-        status: newRecord.status,
-        verification_url: newRecord.verification_url,
-        qr_code_url: newRecord.qr_code_url,
-        remarks: newRecord.remarks
-      };
-
-      const { data, error } = await client
-        .from('certificates')
-        .upsert([dbRow], { onConflict: 'certificate_number' })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase insert error:', error);
-        supabaseErrorMsg = error.message;
-      } else if (data) {
-        supabaseSuccess = true;
-        const saved = normalizeCertificateRow(data);
-        const current = getLocalCertificates().filter(c => c.certificate_number !== saved.certificate_number);
-        saveLocalCertificates([saved, ...current]);
-        return { success: true, data: saved };
-      }
-    } catch (e: any) {
-      console.error('Supabase insert exception:', e);
-      supabaseErrorMsg = e?.message || 'Network exception';
-    }
+  if (!client) {
+    return {
+      success: true,
+      savedToSupabase: false,
+      data: newRecord,
+      warning: 'Saved to local browser storage. To store permanently in your Supabase cloud database, configure your Supabase Project URL & Anon Key in the "Supabase Sync & Schema" tab.'
+    };
   }
 
-  // Always save locally so admin can immediately work and preview
-  const current = getLocalCertificates().filter(c => c.certificate_number !== newRecord.certificate_number);
-  saveLocalCertificates([newRecord, ...current]);
-
-  return { 
-    success: true, 
-    data: newRecord, 
-    error: client && !supabaseSuccess ? `Saved locally. Supabase note: ${supabaseErrorMsg}` : undefined 
+  // Prepare database row
+  const dbRow = {
+    certificate_number: newRecord.certificate_number,
+    student_name: newRecord.student_name,
+    father_name: newRecord.father_name || null,
+    course_name: newRecord.course_name,
+    course_level: newRecord.course_level,
+    issue_date: sanitizeDate(newRecord.issue_date),
+    date_of_birth: sanitizeDate(newRecord.date_of_birth),
+    completion_date: sanitizeDate(newRecord.completion_date),
+    instructor_name: newRecord.instructor_name,
+    institute_name: newRecord.institute_name,
+    status: newRecord.status,
+    verification_url: newRecord.verification_url,
+    qr_code_url: newRecord.qr_code_url,
+    remarks: newRecord.remarks
   };
+
+  try {
+    const res = await resilientSupabaseUpsert(client, dbRow, 'certificate_number');
+    if (res.success && res.data) {
+      const saved = normalizeCertificateRow(res.data);
+      const updatedList = getLocalCertificates().filter(
+        c => c.certificate_number.toUpperCase().trim() !== certNumber.toUpperCase()
+      );
+      saveLocalCertificates([saved, ...updatedList]);
+      return {
+        success: true,
+        savedToSupabase: true,
+        data: saved,
+        missingColumns: res.missingColumns
+      };
+    } else {
+      return {
+        success: true,
+        savedToSupabase: false,
+        data: newRecord,
+        error: res.error || 'Failed to save record to Supabase.'
+      };
+    }
+  } catch (err: any) {
+    console.error('Supabase write exception:', err);
+    return {
+      success: true,
+      savedToSupabase: false,
+      data: newRecord,
+      error: `Supabase Network Exception: ${err?.message || 'Failed to connect to Supabase.'}`
+    };
+  }
 }
 
 /**
- * Update certificate record in Supabase and local store.
+ * Update certificate in Supabase and local store.
  */
 export async function updateCertificate(
   id: string, 
   updates: Partial<Certificate>
-): Promise<{ success: boolean; data: Certificate | null; error?: string }> {
+): Promise<{ success: boolean; data: Certificate | null; error?: string; missingColumns?: string[] }> {
   let certNumber = updates.certificate_number?.trim();
   let verificationUrl = updates.verification_url;
   let qrCodeUrl = updates.qr_code_url;
@@ -491,7 +622,7 @@ export async function updateCertificate(
     qrCodeUrl = await generateCertificateQRCode(verificationUrl);
   }
 
-  const enrichedUpdates = {
+  const enrichedUpdates: Partial<Certificate> = {
     ...updates,
     ...(certNumber ? { certificate_number: certNumber, verification_url: verificationUrl, qr_code_url: qrCodeUrl } : {}),
     updated_at: new Date().toISOString()
@@ -505,12 +636,12 @@ export async function updateCertificate(
       };
       if (enrichedUpdates.certificate_number) dbUpdates.certificate_number = enrichedUpdates.certificate_number;
       if (enrichedUpdates.student_name) dbUpdates.student_name = enrichedUpdates.student_name;
-      if (enrichedUpdates.father_name !== undefined) dbUpdates.father_name = enrichedUpdates.father_name;
+      if (enrichedUpdates.father_name !== undefined) dbUpdates.father_name = enrichedUpdates.father_name || null;
       if (enrichedUpdates.course_name) dbUpdates.course_name = enrichedUpdates.course_name;
       if (enrichedUpdates.course_level) dbUpdates.course_level = enrichedUpdates.course_level;
-      if (enrichedUpdates.issue_date) dbUpdates.issue_date = enrichedUpdates.issue_date;
-      if (enrichedUpdates.date_of_birth !== undefined) dbUpdates.date_of_birth = enrichedUpdates.date_of_birth || null;
-      if (enrichedUpdates.completion_date !== undefined) dbUpdates.completion_date = enrichedUpdates.completion_date || null;
+      if (enrichedUpdates.issue_date) dbUpdates.issue_date = sanitizeDate(enrichedUpdates.issue_date);
+      if (enrichedUpdates.date_of_birth !== undefined) dbUpdates.date_of_birth = sanitizeDate(enrichedUpdates.date_of_birth);
+      if (enrichedUpdates.completion_date !== undefined) dbUpdates.completion_date = sanitizeDate(enrichedUpdates.completion_date);
       if (enrichedUpdates.instructor_name) dbUpdates.instructor_name = enrichedUpdates.instructor_name;
       if (enrichedUpdates.institute_name) dbUpdates.institute_name = enrichedUpdates.institute_name;
       if (enrichedUpdates.status) dbUpdates.status = enrichedUpdates.status;
@@ -518,15 +649,10 @@ export async function updateCertificate(
       if (enrichedUpdates.qr_code_url) dbUpdates.qr_code_url = enrichedUpdates.qr_code_url;
       if (enrichedUpdates.remarks !== undefined) dbUpdates.remarks = enrichedUpdates.remarks;
 
-      const { data, error } = await client
-        .from('certificates')
-        .update(dbUpdates)
-        .eq('id', id)
-        .select()
-        .single();
+      const res = await resilientSupabaseUpdate(client, { id, certNumber }, dbUpdates);
 
-      if (!error && data) {
-        const saved = normalizeCertificateRow(data);
+      if (res.success && res.data) {
+        const saved = normalizeCertificateRow(res.data);
         const current = getLocalCertificates();
         const idx = current.findIndex(c => c.id === id || c.certificate_number === saved.certificate_number);
         if (idx !== -1) {
@@ -535,7 +661,7 @@ export async function updateCertificate(
           current.unshift(saved);
         }
         saveLocalCertificates(current);
-        return { success: true, data: saved };
+        return { success: true, data: saved, missingColumns: res.missingColumns };
       }
     } catch (e: any) {
       console.warn('Supabase update failed:', e);
@@ -543,7 +669,7 @@ export async function updateCertificate(
   }
 
   const current = getLocalCertificates();
-  const idx = current.findIndex(c => c.id === id);
+  const idx = current.findIndex(c => c.id === id || (certNumber && c.certificate_number.toUpperCase() === certNumber.toUpperCase()));
   if (idx === -1) return { success: false, data: null, error: 'Record not found' };
 
   const updatedCert = { ...current[idx], ...enrichedUpdates };
@@ -559,15 +685,11 @@ export async function deleteCertificate(id: string, certificateNumber?: string):
   const client = getSupabase();
   if (client) {
     try {
-      let query = client.from('certificates').delete();
       if (id && !id.startsWith('cert-')) {
-        query = query.eq('id', id);
+        await client.from('certificates').delete().eq('id', id);
       } else if (certificateNumber) {
-        query = query.eq('certificate_number', certificateNumber);
-      } else {
-        query = query.eq('id', id);
+        await client.from('certificates').delete().ilike('certificate_number', certificateNumber.trim());
       }
-      await query;
     } catch (e) {
       console.warn('Supabase delete failed:', e);
     }
@@ -578,3 +700,70 @@ export async function deleteCertificate(id: string, certificateNumber?: string):
   saveLocalCertificates(filtered);
   return true;
 }
+
+/**
+ * Batch synchronize all local records to Supabase.
+ */
+export async function syncAllToSupabase(): Promise<{
+  success: boolean;
+  syncedCount: number;
+  totalCount: number;
+  errors: string[];
+}> {
+  const client = getSupabase();
+  if (!client) {
+    return {
+      success: false,
+      syncedCount: 0,
+      totalCount: 0,
+      errors: ['Supabase is not configured. Please enter your Project URL and Anon API key.']
+    };
+  }
+
+  const localCerts = getLocalCertificates();
+  if (localCerts.length === 0) {
+    return { success: true, syncedCount: 0, totalCount: 0, errors: [] };
+  }
+
+  let syncedCount = 0;
+  const errors: string[] = [];
+
+  for (const cert of localCerts) {
+    try {
+      const dbRow = {
+        certificate_number: cert.certificate_number.trim(),
+        student_name: cert.student_name.trim(),
+        father_name: cert.father_name || null,
+        course_name: cert.course_name.trim(),
+        course_level: cert.course_level || 'Level 3',
+        issue_date: sanitizeDate(cert.issue_date) || new Date().toISOString().split('T')[0],
+        date_of_birth: sanitizeDate(cert.date_of_birth),
+        completion_date: sanitizeDate(cert.completion_date),
+        instructor_name: cert.instructor_name || 'Training Department',
+        institute_name: cert.institute_name || 'Qualifi Health & Safety Training Centre',
+        status: cert.status || 'VALID',
+        verification_url: cert.verification_url || generateVerificationUrl(cert.certificate_number),
+        qr_code_url: cert.qr_code_url || '',
+        remarks: cert.remarks || 'Official registered qualification record.'
+      };
+
+      const res = await resilientSupabaseUpsert(client, dbRow, 'certificate_number');
+
+      if (res.success) {
+        syncedCount++;
+      } else {
+        errors.push(`${cert.certificate_number}: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      errors.push(`${cert.certificate_number}: ${err?.message || 'Sync error'}`);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    syncedCount,
+    totalCount: localCerts.length,
+    errors
+  };
+}
+
