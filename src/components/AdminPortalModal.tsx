@@ -155,6 +155,10 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     try {
       const data = await fetchAllCertificates();
       setCertificates(data);
+      if (isSupabaseReady()) {
+        // Automatically sync all records to Supabase Cloud in background
+        syncAllToSupabase().catch(() => {});
+      }
     } catch (e) {
       console.warn('Failed to load certificates:', e);
     } finally {

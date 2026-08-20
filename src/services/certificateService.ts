@@ -176,6 +176,7 @@ export function saveLocalCertificates(certs: Certificate[]): void {
 
 /**
  * Fetch all certificates: queries Supabase if configured and merges with local backup.
+ * Automatically synchronizes any local-only records to Supabase Cloud in background.
  */
 export async function fetchAllCertificates(): Promise<Certificate[]> {
   const localList = getLocalCertificates();
@@ -204,6 +205,16 @@ export async function fetchAllCertificates(): Promise<Certificate[]> {
 
         const merged = Array.from(certMap.values());
         saveLocalCertificates(merged);
+
+        // Auto-sync any local-only certificates to Supabase in background
+        const supabaseCertNums = new Set(supabaseCerts.map(c => c.certificate_number.toUpperCase().trim()));
+        const missingInSupabase = localList.filter(l => !supabaseCertNums.has(l.certificate_number.toUpperCase().trim()));
+        
+        if (missingInSupabase.length > 0) {
+          console.log(`Auto-syncing ${missingInSupabase.length} offline/local certificate(s) to Supabase Cloud...`);
+          syncAllToSupabase().catch(err => console.warn('Background auto-sync error:', err));
+        }
+
         return merged;
       }
       if (error) {
@@ -218,13 +229,19 @@ export async function fetchAllCertificates(): Promise<Certificate[]> {
 }
 
 /**
- * Public Verification Function: Queries Supabase in real-time.
+ * Public Verification Function: Queries Supabase in real-time with resilient multi-strategy search.
  */
 export async function verifyCertificate(
   certificateNumber: string,
   optionalStudentName?: string
 ): Promise<VerificationResult> {
-  const sanitizedNumber = certificateNumber.trim();
+  let sanitizedNumber = certificateNumber.trim();
+  try {
+    sanitizedNumber = decodeURIComponent(sanitizedNumber).trim();
+  } catch {
+    // ignore decode error
+  }
+
   const sanitizedName = optionalStudentName?.trim().toLowerCase();
 
   if (!sanitizedNumber) {
@@ -238,17 +255,48 @@ export async function verifyCertificate(
   }
 
   // Brief delay for smooth verification UX
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   const client = getSupabase();
+  const normalizedSearchCode = sanitizedNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-  // 1. If Supabase is connected, query live cloud database
+  // 1. If Supabase is connected, query live cloud database with multiple fallback strategies
   if (client) {
     try {
-      const { data, error } = await client
+      // Strategy 1: Exact / Case-insensitive match on certificate_number
+      let { data, error } = await client
         .from('certificates')
         .select('*')
         .ilike('certificate_number', sanitizedNumber);
+
+      // Strategy 2: If not found, try stripped without hyphens/spaces or with wildcard
+      if ((!data || data.length === 0) && normalizedSearchCode) {
+        const fallbackRes = await client
+          .from('certificates')
+          .select('*')
+          .or(`certificate_number.ilike.%${sanitizedNumber}%,certificate_number.ilike.%${normalizedSearchCode}%`);
+        
+        if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+          data = fallbackRes.data;
+          error = null;
+        }
+      }
+
+      // Strategy 3: Search by full table scan normalized in memory
+      if (!data || data.length === 0) {
+        const allRes = await client.from('certificates').select('*').limit(200);
+        if (!allRes.error && allRes.data && allRes.data.length > 0) {
+          const matched = allRes.data.find((row: any) => {
+            const rowNum = (row.certificate_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const targetNum = normalizedSearchCode;
+            return rowNum === targetNum || (targetNum.length >= 4 && rowNum.includes(targetNum)) || (rowNum.length >= 4 && targetNum.includes(rowNum));
+          });
+          if (matched) {
+            data = [matched];
+            error = null;
+          }
+        }
+      }
 
       if (!error && data && data.length > 0) {
         const matched = normalizeCertificateRow(data[0]);
@@ -257,7 +305,7 @@ export async function verifyCertificate(
           return {
             state: 'not_found',
             data: null,
-            errorMessage: `Certificate number "${sanitizedNumber}" exists, but student name does not match official records.`,
+            errorMessage: `Certificate number "${sanitizedNumber}" exists, but candidate name does not match official records.`,
             searchedQuery: sanitizedNumber,
             dataSource: 'supabase'
           };
@@ -282,22 +330,19 @@ export async function verifyCertificate(
     }
   }
 
-  // 2. Query local registry store
+  // 2. Query local registry store as resilient backup
   const localList = getLocalCertificates();
-  const normalizedTarget = sanitizedNumber.toUpperCase().replace(/[\s\-_]/g, '');
   
   const found = localList.find((c) => {
-    const certNumNorm = c.certificate_number.toUpperCase().replace(/[\s\-_]/g, '');
-    return certNumNorm === normalizedTarget || c.certificate_number.toUpperCase().trim() === sanitizedNumber.toUpperCase();
+    const certNumNorm = c.certificate_number.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return certNumNorm === normalizedSearchCode || c.certificate_number.toUpperCase().trim() === sanitizedNumber.toUpperCase();
   });
 
   if (!found) {
     return {
       state: 'not_found',
       data: null,
-      errorMessage: isSupabaseReady() 
-        ? `No certificate record found in the official registry for "${sanitizedNumber}".` 
-        : `No certificate found matching "${sanitizedNumber}". To load records from your Supabase account, please configure your Supabase Project URL and Key in the Admin Portal.`,
+      errorMessage: `We could not find a certificate matching "${sanitizedNumber}". Please verify the certificate number or ensure the record was saved to the central registry.`,
       searchedQuery: sanitizedNumber,
       dataSource: isSupabaseReady() ? 'supabase' : 'local_store'
     };

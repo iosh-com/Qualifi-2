@@ -31,8 +31,8 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-[#D6A84F]" />
             <span className="font-bold text-sm sm:text-base">Official Digital Certificate Document</span>
-            <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-              status === 'VALID' ? 'bg-emerald-600/90 text-white' : 'bg-rose-600 text-white'
+            <span className={`text-xs font-mono px-2.5 py-0.5 rounded font-bold ${
+              status === 'VALID' ? 'bg-[#0A4D7E] text-white' : 'bg-rose-600 text-white'
             }`}>
               {status}
             </span>
@@ -132,7 +132,7 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-500">Status:</span>{' '}
-                  <strong className={status === 'VALID' ? 'text-emerald-700' : 'text-rose-700'}>
+                  <strong className={status === 'VALID' ? 'text-[#0A4D7E]' : 'text-rose-700'}>
                     {status}
                   </strong>
                 </div>
@@ -154,8 +154,8 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
                   </div>
                 )}
 
-                <div className="inline-flex items-center gap-1 text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                <div className="inline-flex items-center gap-1 text-[10px] text-[#0A4D7E] font-bold bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                  <CheckCircle2 className="w-3 h-3 text-[#0A4D7E]" />
                   <span>DIGITALLY VERIFIED</span>
                 </div>
               </div>

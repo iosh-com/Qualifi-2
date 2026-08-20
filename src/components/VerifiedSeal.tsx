@@ -1,5 +1,4 @@
 import React from 'react';
-import { ShieldCheck, CheckCircle2, Award, Lock, Sparkles } from 'lucide-react';
 
 interface VerifiedSealProps {
   certificateNumber?: string;
@@ -8,142 +7,156 @@ interface VerifiedSealProps {
 }
 
 export const VerifiedSeal: React.FC<VerifiedSealProps> = ({
-  certificateNumber,
   size = 'md',
   className = ''
 }) => {
   const isLarge = size === 'lg';
   const isSmall = size === 'sm';
 
+  // Generate 42 scalloped teeth points for the authentic circular stamp edge
+  const numTeeth = 42;
+  const cx = 120;
+  const cy = 120;
+  const outerR = 114;
+  const innerR = 107;
+  
+  let pathD = '';
+  for (let i = 0; i < numTeeth; i++) {
+    const angle1 = (i * 2 * Math.PI) / numTeeth;
+    const angle2 = ((i + 0.5) * 2 * Math.PI) / numTeeth;
+    const angle3 = ((i + 1) * 2 * Math.PI) / numTeeth;
+
+    const x1 = cx + innerR * Math.cos(angle1);
+    const y1 = cy + innerR * Math.sin(angle1);
+    const xPeak = cx + outerR * Math.cos(angle2);
+    const yPeak = cy + outerR * Math.sin(angle2);
+    const x2 = cx + innerR * Math.cos(angle3);
+    const y2 = cy + innerR * Math.sin(angle3);
+
+    if (i === 0) {
+      pathD += `M ${x1} ${y1} Q ${xPeak} ${yPeak} ${x2} ${y2}`;
+    } else {
+      pathD += ` Q ${xPeak} ${yPeak} ${x2} ${y2}`;
+    }
+  }
+  pathD += ' Z';
+
   return (
     <div className={`flex flex-col items-center justify-center text-center select-none ${className}`}>
-      {/* High-Definition Official Verified SVG Emblem */}
+      {/* Official Verified Blue & White Stamp Seal */}
       <div className="relative flex items-center justify-center">
-        {/* Glow halo */}
-        <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl animate-pulse pointer-events-none" />
-
-        {/* Master Scalable SVG Seal */}
         <svg 
           viewBox="0 0 240 240" 
-          className={`${isLarge ? 'w-48 h-48' : isSmall ? 'w-24 h-24' : 'w-36 h-36'} drop-shadow-lg`}
-          aria-label="Officially Verified Security Seal"
+          className={`${isLarge ? 'w-44 h-44' : isSmall ? 'w-20 h-20' : 'w-32 h-32'} drop-shadow-md`}
+          aria-label="Official Verified Security Stamp"
         >
           <defs>
-            {/* Outer Gold Gradient */}
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FDE047" />
-              <stop offset="30%" stopColor="#D6A84F" />
-              <stop offset="70%" stopColor="#9A7424" />
-              <stop offset="100%" stopColor="#EAB308" />
-            </linearGradient>
-
-            {/* Emerald Center Gradient */}
-            <linearGradient id="emeraldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#059669" />
-              <stop offset="50%" stopColor="#047857" />
-              <stop offset="100%" stopColor="#064E3B" />
-            </linearGradient>
-
-            {/* Navy Outer Ring Gradient */}
-            <linearGradient id="navyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0B1F3A" />
-              <stop offset="100%" stopColor="#1456A0" />
-            </linearGradient>
-
-            {/* Circular Path for Text */}
+            {/* Top Text Curve */}
             <path
-              id="textCircleTop"
-              d="M 30,120 A 90,90 0 1,1 210,120"
+              id="stampArcTop"
+              d="M 38,120 A 82,82 0 1,1 202,120"
               fill="none"
             />
+            {/* Bottom Text Curve */}
             <path
-              id="textCircleBottom"
-              d="M 210,120 A 90,90 0 0,1 30,120"
+              id="stampArcBottom"
+              d="M 202,120 A 82,82 0 0,1 38,120"
               fill="none"
             />
           </defs>
 
-          {/* Outer Sunburst / Rosette Star Border (24 points) */}
-          <circle cx="120" cy="120" r="114" fill="url(#goldGradient)" />
-          
-          {/* Scalloped Edge Trim */}
-          <circle cx="120" cy="120" r="110" fill="#0B1F3A" stroke="url(#goldGradient)" strokeWidth="3" />
-          
-          {/* Micro Security Bead Ring */}
-          <circle cx="120" cy="120" r="102" fill="none" stroke="#D6A84F" strokeWidth="1.5" strokeDasharray="3 3" />
+          {/* 1. Scalloped Serrated Outer Star Rim in Rich Deep Blue */}
+          <path d={pathD} fill="#0A4D7E" />
 
-          {/* Outer Circular Curved Text: QUALIFI TRAINING CENTRE */}
-          <text fill="#FFFFFF" fontSize="10.5" fontWeight="800" letterSpacing="2.5" textAnchor="middle">
-            <textPath href="#textCircleTop" startOffset="50%">
-              QUALIFI HEALTH & SAFETY
+          {/* 2. Concentric White Gap Ring */}
+          <circle cx="120" cy="120" r="103" fill="none" stroke="#FFFFFF" strokeWidth="2.5" />
+
+          {/* 3. Deep Blue Solid Disc */}
+          <circle cx="120" cy="120" r="99" fill="#0A4D7E" />
+
+          {/* 4. Fine White Stitched Dashed Ring */}
+          <circle cx="120" cy="120" r="91" fill="none" stroke="#FFFFFF" strokeWidth="1.2" strokeDasharray="3.5 2.5" />
+
+          {/* 5. Inner Thin White Border */}
+          <circle cx="120" cy="120" r="69" fill="none" stroke="#FFFFFF" strokeWidth="1.5" />
+
+          {/* 6. Top Arc Text: ★ ★ ★ VERIFIED ★ ★ ★ */}
+          <text fill="#FFFFFF" fontSize="13" fontWeight="900" letterSpacing="2.5" textAnchor="middle">
+            <textPath href="#stampArcTop" startOffset="50%">
+              ★ ★ ★  VERIFIED  ★ ★ ★
             </textPath>
           </text>
 
-          {/* Bottom Circular Curved Text: UNITED KINGDOM */}
-          <text fill="#D6A84F" fontSize="9.5" fontWeight="800" letterSpacing="3" textAnchor="middle">
-            <textPath href="#textCircleBottom" startOffset="50%">
-              ★ OFFICIAL REGISTRY ★
+          {/* 7. Bottom Arc Text: ★ ★ ★ VERIFIED ★ ★ ★ */}
+          <text fill="#FFFFFF" fontSize="13" fontWeight="900" letterSpacing="2.5" textAnchor="middle">
+            <textPath href="#stampArcBottom" startOffset="50%">
+              ★ ★ ★  VERIFIED  ★ ★ ★
             </textPath>
           </text>
 
-          {/* Inner Gold Ring */}
-          <circle cx="120" cy="120" r="76" fill="url(#goldGradient)" stroke="#0B1F3A" strokeWidth="2" />
-          
-          {/* Core Emerald Shield Circle */}
-          <circle cx="120" cy="120" r="70" fill="url(#emeraldGradient)" />
-
-          {/* Guilloche Fine Security Lines inside core */}
-          <circle cx="120" cy="120" r="62" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-          <circle cx="120" cy="120" r="54" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 2" />
-
-          {/* Central Heraldic Shield Icon */}
+          {/* 8. Upper Center Star */}
           <path
-            d="M120 72 L148 84 V120 C148 140 136 156 120 164 C104 156 92 140 92 120 V84 Z"
-            fill="#064E3B"
-            stroke="url(#goldGradient)"
-            strokeWidth="3"
+            d="M 120,70 L 122.5,76 L 129,76.5 L 124,80.5 L 125.5,87 L 120,83 L 114.5,87 L 116,80.5 L 111,76.5 L 117.5,76 Z"
+            fill="#FFFFFF"
           />
 
-          {/* Bold White Heavy Checkmark */}
+          {/* 9. Lower Center Star */}
           <path
-            d="M106 118 L116 128 L136 104"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            d="M 120,153 L 122.5,159 L 129,159.5 L 124,163.5 L 125.5,170 L 120,166 L 114.5,170 L 116,163.5 L 111,159.5 L 117.5,159 Z"
+            fill="#FFFFFF"
           />
 
-          {/* Little Stars inside Shield */}
-          <circle cx="120" cy="88" r="2.5" fill="#D6A84F" />
+          {/* 10. Horizontal Middle Banner Bar (Deep Blue with White Double Border) */}
+          {/* Banner Drop Shadow / Outline */}
+          <rect 
+            x="36" 
+            y="102" 
+            width="168" 
+            height="36" 
+            rx="6" 
+            fill="#0A4D7E" 
+            stroke="#FFFFFF" 
+            strokeWidth="2.5" 
+          />
+          {/* Inner Banner Line */}
+          <rect 
+            x="39" 
+            y="105" 
+            width="162" 
+            height="30" 
+            rx="4" 
+            fill="#0A4D7E" 
+            stroke="rgba(255,255,255,0.4)" 
+            strokeWidth="1" 
+          />
 
-          {/* Ribbon / Banner Across Bottom */}
-          <g transform="translate(0, 16)">
-            {/* Banner Tails */}
-            <path d="M 28 178 L 48 164 L 48 190 Z" fill="#9A7424" />
-            <path d="M 212 178 L 192 164 L 192 190 Z" fill="#9A7424" />
-            
-            {/* Main Banner Rect */}
-            <rect x="42" y="162" width="156" height="26" rx="4" fill="url(#navyGradient)" stroke="url(#goldGradient)" strokeWidth="2" />
-            
-            {/* Banner Text */}
-            <text x="120" y="179" fill="#FFFFFF" fontSize="11" fontWeight="900" letterSpacing="1.8" textAnchor="middle">
-              VERIFIED
-            </text>
-          </g>
+          {/* 11. Large Bold White "VERIFIED" Banner Text */}
+          <text 
+            x="120" 
+            y="126" 
+            fill="#FFFFFF" 
+            fontSize="21" 
+            fontWeight="900" 
+            fontFamily="Arial, Helvetica, sans-serif" 
+            letterSpacing="3" 
+            textAnchor="middle"
+          >
+            VERIFIED
+          </text>
         </svg>
       </div>
 
-      {/* Official Status Labels under Seal */}
+      {/* Official Status Under Badge */}
       <div className="mt-2 space-y-0.5">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-extrabold tracking-wide uppercase">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0A4D7E]/10 text-[#0A4D7E] border border-[#0A4D7E]/30 text-xs font-extrabold tracking-wide uppercase">
+          <span className="w-2 h-2 rounded-full bg-[#0A4D7E]" />
           <span>OFFICIALLY VERIFIED & AUTHENTIC</span>
         </div>
-        <p className="text-[11px] font-medium text-slate-600 block">
+        <p className="text-[11px] font-semibold text-slate-700 block">
           Qualifi Central Registry • United Kingdom
         </p>
       </div>
     </div>
   );
 };
+

@@ -102,12 +102,12 @@ export const VerifyPage: React.FC<VerifyPageProps> = ({ onViewFullCertificate })
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A4D7E] flex items-center justify-center font-bold">
               <Lock className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-slate-900 text-sm">Cryptographic Serial Number</h4>
+            <h4 className="font-bold text-slate-900 text-sm">Official Registry Identification</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Certificates are assigned a structured sequential identifier (e.g. <code>QHSTC-2026-00001</code>) matched against authorized exam department records.
+              Certificates are assigned a structured sequential identifier (e.g. <code>QHSTC-2026-00001</code>) matched against authorized registry records.
             </p>
           </div>
 
