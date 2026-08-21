@@ -747,6 +747,53 @@ export async function deleteCertificate(id: string, certificateNumber?: string):
 }
 
 /**
+ * Synchronize a single certificate to Supabase cloud database.
+ */
+export async function syncSingleCertificateToSupabase(
+  cert: Certificate
+): Promise<{ success: boolean; error?: string; missingColumns?: string[] }> {
+  const client = getSupabase();
+  if (!client) {
+    return {
+      success: false,
+      error: 'Supabase is not configured. Please enter your Project URL and Anon API key in the Supabase Sync tab.'
+    };
+  }
+
+  const dbRow = {
+    certificate_number: cert.certificate_number.trim(),
+    student_name: cert.student_name.trim(),
+    father_name: cert.father_name || null,
+    course_name: cert.course_name.trim(),
+    course_level: cert.course_level || 'Level 3',
+    issue_date: sanitizeDate(cert.issue_date) || new Date().toISOString().split('T')[0],
+    date_of_birth: sanitizeDate(cert.date_of_birth),
+    completion_date: sanitizeDate(cert.completion_date),
+    instructor_name: cert.instructor_name || 'Training Department',
+    institute_name: cert.institute_name || cert.training_provider || 'Qualifi Health & Safety Training Centre',
+    status: cert.status || cert.certificate_status || 'VALID',
+    verification_url: cert.verification_url || generateVerificationUrl(cert.certificate_number),
+    qr_code_url: cert.qr_code_url || '',
+    remarks: cert.remarks || 'Official registered qualification record.'
+  };
+
+  try {
+    const res = await resilientSupabaseUpsert(client, dbRow, 'certificate_number');
+    if (res.success && res.data) {
+      const saved = normalizeCertificateRow(res.data);
+      const updatedList = getLocalCertificates().filter(
+        c => c.certificate_number.toUpperCase().trim() !== cert.certificate_number.toUpperCase().trim()
+      );
+      saveLocalCertificates([saved, ...updatedList]);
+      return { success: true, missingColumns: res.missingColumns };
+    }
+    return { success: false, error: res.error || 'Failed to sync to Supabase' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Sync network error' };
+  }
+}
+
+/**
  * Batch synchronize all local records to Supabase.
  */
 export async function syncAllToSupabase(): Promise<{

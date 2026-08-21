@@ -9,7 +9,11 @@ export interface SupabaseCredentials {
   configured: boolean;
 }
 
-// Read from env or dynamic local storage
+// Default project credentials configured directly for global multi-device verification
+const DEFAULT_SUPABASE_URL = 'https://vwayhjldzdqlmriukeeh.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_ypudYXXBwdEQ_f9QOm2Sfw_PU0MifIv';
+
+// Read from custom local storage, environment variables, or hardcoded project default
 export function getSupabaseCredentials(): SupabaseCredentials {
   try {
     const custom = localStorage.getItem(CUSTOM_CONFIG_KEY);
@@ -27,8 +31,8 @@ export function getSupabaseCredentials(): SupabaseCredentials {
   }
 
   const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
-  const url = (env.VITE_SUPABASE_URL || '').trim();
-  const anonKey = (env.VITE_SUPABASE_ANON_KEY || '').trim();
+  const url = (env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim();
+  const anonKey = (env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
   const configured = Boolean(url && anonKey && !url.includes('your-project') && !anonKey.includes('your-anon-key'));
 
   return { url, anonKey, isCustom: false, configured };

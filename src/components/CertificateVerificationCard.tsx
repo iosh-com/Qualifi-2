@@ -399,10 +399,10 @@ export const CertificateVerificationCard: React.FC<CertificateVerificationCardPr
                       Certificate Not Found
                     </h3>
                     <p className="text-sm text-rose-800 leading-relaxed">
-                      We could not find a certificate matching the certificate number 
+                      We could not find a certificate matching the certificate number{' '}
                       <span className="font-mono font-bold px-2 py-0.5 mx-1 bg-white rounded border border-rose-200 text-slate-900">
                         {result.searchedQuery}
-                      </span> 
+                      </span>{' '}
                       in the official Supabase database.
                     </p>
                     <div className="pt-3 text-xs text-rose-700 space-y-1">

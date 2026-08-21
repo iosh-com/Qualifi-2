@@ -38,6 +38,7 @@ import {
   getAdminAuthConfig,
   saveAdminAuthConfig,
   syncAllToSupabase,
+  syncSingleCertificateToSupabase,
   NewCertificatePayload
 } from '../services/certificateService';
 import { 
@@ -340,7 +341,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     try {
       const res = await syncAllToSupabase();
       if (res.success) {
-        setSyncStatus(`✅ Successfully synced ${res.syncedCount} of ${res.totalCount} records to Supabase!`);
+        setSyncStatus(`✅ Successfully synced ${res.syncedCount} of ${res.totalCount} records to Supabase! All devices can now verify.`);
       } else {
         setSyncStatus(`⚠️ Synced ${res.syncedCount} of ${res.totalCount} records. Issues: ${res.errors.join('; ')}`);
       }
@@ -350,7 +351,27 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       setSyncStatus(`❌ Sync failed: ${e?.message || 'Network error'}`);
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncStatus(null), 5000);
+      setTimeout(() => setSyncStatus(null), 6000);
+    }
+  };
+
+  const handleSyncSingle = async (cert: Certificate) => {
+    setIsSyncing(true);
+    setSyncStatus(`Uploading certificate ${cert.certificate_number} to Supabase...`);
+    try {
+      const res = await syncSingleCertificateToSupabase(cert);
+      if (res.success) {
+        setSyncStatus(`✅ Certificate ${cert.certificate_number} uploaded to Supabase! Verifiable from any device.`);
+        await loadRecords();
+        onCertificateUpdated?.();
+      } else {
+        setSyncStatus(`⚠️ Upload failed for ${cert.certificate_number}: ${res.error}`);
+      }
+    } catch (err: any) {
+      setSyncStatus(`❌ Upload error: ${err?.message || 'Network error'}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncStatus(null), 6000);
     }
   };
 
@@ -686,6 +707,22 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
             {/* TAB 1: ALL RECORDS */}
             {activeTab === 'records' && (
               <div className="p-6 flex-1 overflow-y-auto space-y-4">
+                
+                {/* Multi-Device Global Verification Notice */}
+                <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-slate-700">
+                  <div className="w-7 h-7 rounded-lg bg-[#0A4D7E] text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <p className="font-bold text-[#0B1F3A]">
+                      Worldwide Multi-Device Verification (Mobile, Tablet, Laptop)
+                    </p>
+                    <p className="text-slate-600 leading-relaxed">
+                      Certificates uploaded to your <strong>Supabase Cloud Database</strong> can be verified 24/7 by any smartphone camera, QR scanner, or web browser anywhere in the world without requiring any login. Use the <strong className="text-emerald-700">Sync All to Cloud</strong> button or individual <UploadCloud className="w-3 h-3 inline text-emerald-700" /> icons to push all student records to Supabase.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="relative flex-1 max-w-md">
                     <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
@@ -791,6 +828,15 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                                 </button>
                               </td>
                               <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                                {isSupabaseReady() && (
+                                  <button
+                                    onClick={() => handleSyncSingle(cert)}
+                                    className="p-1.5 hover:bg-emerald-50 text-emerald-700 rounded cursor-pointer"
+                                    title="Upload/Sync this certificate to Supabase Cloud"
+                                  >
+                                    <UploadCloud className="w-4 h-4" />
+                                  </button>
+                                )}
                                 {onViewCertificate && (
                                   <button
                                     onClick={() => onViewCertificate(cert)}
