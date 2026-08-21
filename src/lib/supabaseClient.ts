@@ -202,6 +202,50 @@ ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS remarks TEXT DEFAULT 'O
 ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'VALID';
 ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Create student_queries table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.student_queries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  subject TEXT NOT NULL DEFAULT 'Training Inquiry',
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'NEW', -- 'NEW', 'CONTACTED', 'RESOLVED', 'ARCHIVED'
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.student_queries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public query submissions" ON public.student_queries;
+CREATE POLICY "Allow public query submissions" 
+ON public.student_queries 
+FOR INSERT 
+TO anon, authenticated, public 
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow admin query reads" ON public.student_queries;
+CREATE POLICY "Allow admin query reads" 
+ON public.student_queries 
+FOR SELECT 
+TO anon, authenticated, public 
+USING (true);
+
+DROP POLICY IF EXISTS "Allow admin query updates" ON public.student_queries;
+CREATE POLICY "Allow admin query updates" 
+ON public.student_queries 
+FOR UPDATE 
+TO anon, authenticated, public 
+USING (true);
+
+DROP POLICY IF EXISTS "Allow admin query deletes" ON public.student_queries;
+CREATE POLICY "Allow admin query deletes" 
+ON public.student_queries 
+FOR DELETE 
+TO anon, authenticated, public 
+USING (true);
+
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';`;
 
@@ -252,10 +296,10 @@ CREATE INDEX IF NOT EXISTS idx_certificates_cert_number
 CREATE INDEX IF NOT EXISTS idx_certificates_student_name 
   ON public.certificates (LOWER(TRIM(student_name)));
 
--- 5. Enable Row Level Security (RLS)
+-- 5. Enable Row Level Security (RLS) for certificates
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 
--- 6. Security Policy: Allow public certificate verification reads
+-- 6. Security Policies for certificates
 DROP POLICY IF EXISTS "Allow public certificate verification reads" ON public.certificates;
 CREATE POLICY "Allow public certificate verification reads" 
 ON public.certificates 
@@ -263,7 +307,6 @@ FOR SELECT
 TO anon, authenticated, public 
 USING (true);
 
--- 7. Security Policy: Allow admin inserts
 DROP POLICY IF EXISTS "Allow admin inserts" ON public.certificates;
 CREATE POLICY "Allow admin inserts" 
 ON public.certificates 
@@ -271,7 +314,6 @@ FOR INSERT
 TO anon, authenticated, public 
 WITH CHECK (true);
 
--- 8. Security Policy: Allow admin updates
 DROP POLICY IF EXISTS "Allow admin updates" ON public.certificates;
 CREATE POLICY "Allow admin updates" 
 ON public.certificates 
@@ -279,7 +321,6 @@ FOR UPDATE
 TO anon, authenticated, public 
 USING (true);
 
--- 9. Security Policy: Allow admin deletions
 DROP POLICY IF EXISTS "Allow admin deletes" ON public.certificates;
 CREATE POLICY "Allow admin deletes" 
 ON public.certificates 
@@ -287,7 +328,62 @@ FOR DELETE
 TO anon, authenticated, public 
 USING (true);
 
--- 10. Reload PostgREST schema cache
+-- ==============================================================================
+-- 7. Create the Student Queries / Inquiries Table (QUERIES BOX)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.student_queries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  subject TEXT NOT NULL DEFAULT 'Training Inquiry',
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'NEW', -- 'NEW', 'CONTACTED', 'RESOLVED', 'ARCHIVED'
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index on queries table
+CREATE INDEX IF NOT EXISTS idx_student_queries_created_at 
+  ON public.student_queries (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_student_queries_status 
+  ON public.student_queries (status);
+
+-- Enable RLS for student_queries
+ALTER TABLE public.student_queries ENABLE ROW LEVEL SECURITY;
+
+-- Policies for student_queries
+DROP POLICY IF EXISTS "Allow public query submissions" ON public.student_queries;
+CREATE POLICY "Allow public query submissions" 
+ON public.student_queries 
+FOR INSERT 
+TO anon, authenticated, public 
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow admin query reads" ON public.student_queries;
+CREATE POLICY "Allow admin query reads" 
+ON public.student_queries 
+FOR SELECT 
+TO anon, authenticated, public 
+USING (true);
+
+DROP POLICY IF EXISTS "Allow admin query updates" ON public.student_queries;
+CREATE POLICY "Allow admin query updates" 
+ON public.student_queries 
+FOR UPDATE 
+TO anon, authenticated, public 
+USING (true);
+
+DROP POLICY IF EXISTS "Allow admin query deletes" ON public.student_queries;
+CREATE POLICY "Allow admin query deletes" 
+ON public.student_queries 
+FOR DELETE 
+TO anon, authenticated, public 
+USING (true);
+
+-- 8. Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
 `;
+
 

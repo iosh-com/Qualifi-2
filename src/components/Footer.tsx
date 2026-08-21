@@ -97,20 +97,6 @@ export const Footer: React.FC<FooterProps> = ({
                   <span className="text-[#D6A84F]">›</span> Contact Registry
                 </button>
               </li>
-              <li className="pt-1 border-t border-slate-800/80">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onOpenAdmin();
-                  }}
-                  className="text-slate-400 hover:text-amber-300 transition flex items-center gap-1.5 cursor-pointer text-xs group"
-                >
-                  <Lock className="w-3 h-3 text-[#D6A84F] group-hover:text-amber-300 transition-colors" />
-                  <span>Admin Portal</span>
-                </button>
-              </li>
             </ul>
           </div>
 

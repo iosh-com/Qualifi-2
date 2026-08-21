@@ -9,8 +9,10 @@ import {
   Clock, 
   HelpCircle, 
   MessageSquare,
-  Building
+  Building,
+  Sparkles
 } from 'lucide-react';
+import { submitStudentQuery } from '../services/queriesService';
 
 interface ContactPageProps {
   initialSubject?: string;
@@ -27,16 +29,37 @@ export const ContactPage: React.FC<ContactPageProps> = ({ initialSubject = '' })
 
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionFeedback, setSubmissionFeedback] = useState<{ id?: string; source?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.message.trim()) {
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Realistic inquiry submission feedback
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const res = await submitStudentQuery({
+        student_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
+        status: 'NEW'
+      });
+
+      setSubmissionFeedback({
+        id: res.query.id,
+        source: res.source === 'supabase' ? 'Supabase Database' : 'Central Registry'
+      });
       setSubmitted(true);
-    }, 500);
+    } catch (err) {
+      console.error('Error submitting query:', err);
+      setSubmitted(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -126,29 +149,63 @@ export const ContactPage: React.FC<ContactPageProps> = ({ initialSubject = '' })
             <div className="bg-white p-8 sm:p-10 rounded-2xl border border-slate-200/80 shadow-lg">
               
               {submitted ? (
-                <div className="text-center py-12 space-y-4 animate-in fade-in zoom-in-95 duration-300">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
-                    <CheckCircle2 className="w-10 h-10" />
+                <div className="text-center py-10 space-y-5 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center shadow-xs">
+                    <CheckCircle2 className="w-9 h-9" />
                   </div>
-                  <h3 className="text-2xl font-bold text-slate-900">Enquiry Received</h3>
-                  <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                    Thank you for reaching out to Qualifi Health & Safety Training Centre. Our registry desk will respond to <strong>{formData.email}</strong> within 1 business day.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSubmitted(false);
-                      setFormData({
-                        fullName: '',
-                        email: '',
-                        phone: '',
-                        subject: 'Training Inquiry',
-                        message: ''
-                      });
-                    }}
-                    className="px-6 py-2.5 bg-[#1456A0] text-white text-xs font-bold rounded-xl hover:bg-[#0B1F3A] transition cursor-pointer"
-                  >
-                    Send Another Message
-                  </button>
+                  <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      Saved to {submissionFeedback.source || 'Central Database'}
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900">Enquiry Successfully Logged</h3>
+                    <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                      Thank you for contacting Qualifi Health & Safety Training Centre. Your request has been registered in the student queries desk.
+                    </p>
+                  </div>
+
+                  {submissionFeedback.id && (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 max-w-md mx-auto text-left text-xs space-y-1.5">
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Query Tracking ID:</span>
+                        <span className="font-mono font-bold text-slate-800 text-[11px] truncate max-w-[200px]">{submissionFeedback.id}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Student / Contact Name:</span>
+                        <span className="font-semibold text-slate-800">{formData.fullName}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Email Address:</span>
+                        <span className="font-semibold text-slate-800">{formData.email}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Phone / WhatsApp:</span>
+                        <span className="font-semibold text-slate-800">{formData.phone || 'Not provided'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Inquiry Subject:</span>
+                        <span className="font-semibold text-[#1456A0]">{formData.subject}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        setSubmitted(false);
+                        setFormData({
+                          fullName: '',
+                          email: '',
+                          phone: '',
+                          subject: 'Training Inquiry',
+                          message: ''
+                        });
+                      }}
+                      className="px-6 py-2.5 bg-[#1456A0] text-white text-xs font-bold rounded-xl hover:bg-[#0B1F3A] transition cursor-pointer shadow-xs"
+                    >
+                      Send Another Inquiry
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">

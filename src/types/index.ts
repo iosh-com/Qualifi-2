@@ -59,3 +59,20 @@ export interface ServiceItem {
 }
 
 export type ActivePage = 'home' | 'verify' | 'courses' | 'about' | 'services' | 'contact';
+
+export interface StudentQuery {
+  id: string;
+  student_name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  status: 'NEW' | 'CONTACTED' | 'RESOLVED' | 'ARCHIVED';
+  admin_notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type NewStudentQueryPayload = Omit<StudentQuery, 'id' | 'created_at' | 'status' | 'updated_at'> & {
+  status?: 'NEW' | 'CONTACTED' | 'RESOLVED' | 'ARCHIVED';
+};

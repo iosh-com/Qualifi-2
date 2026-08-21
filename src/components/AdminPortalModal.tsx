@@ -24,9 +24,20 @@ import {
   EyeOff,
   Cloud,
   Download,
-  UploadCloud
+  UploadCloud,
+  MessageSquare,
+  Mail,
+  Phone,
+  Calendar,
+  User,
+  Clock,
+  Send,
+  MessageCircle,
+  FileText,
+  Filter,
+  CheckCheck
 } from 'lucide-react';
-import { Certificate } from '../types';
+import { Certificate, StudentQuery } from '../types';
 import { 
   fetchAllCertificates, 
   addCertificate, 
@@ -41,6 +52,13 @@ import {
   syncSingleCertificateToSupabase,
   NewCertificatePayload
 } from '../services/certificateService';
+import { 
+  fetchAllStudentQueries,
+  updateStudentQueryStatus,
+  deleteStudentQuery,
+  syncAllQueriesToSupabase,
+  exportQueriesToCSV
+} from '../services/queriesService';
 import { 
   isSupabaseReady, 
   getSupabaseCredentials, 
@@ -70,7 +88,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'records' | 'add' | 'supabase_sql' | 'security'>('records');
+  const [activeTab, setActiveTab] = useState<'records' | 'add' | 'queries' | 'supabase_sql' | 'security'>('records');
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -79,6 +97,18 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [copiedSql, setCopiedSql] = useState(false);
   const [copiedFixSql, setCopiedFixSql] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+
+  // Queries Box State
+  const [queries, setQueries] = useState<StudentQuery[]>([]);
+  const [isLoadingQueries, setIsLoadingQueries] = useState(false);
+  const [queriesSearchQuery, setQueriesSearchQuery] = useState('');
+  const [queriesStatusFilter, setQueriesStatusFilter] = useState<'ALL' | 'NEW' | 'CONTACTED' | 'RESOLVED' | 'ARCHIVED'>('ALL');
+  const [selectedQueryDetail, setSelectedQueryDetail] = useState<StudentQuery | null>(null);
+  const [isSyncingQueries, setIsSyncingQueries] = useState(false);
+  const [queriesSyncStatus, setQueriesSyncStatus] = useState<string | null>(null);
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [editingNotesText, setEditingNotesText] = useState('');
+  const [copiedQueryId, setCopiedQueryId] = useState<string | null>(null);
 
   // Form State for Adding / Editing Student Record
   const [formData, setFormData] = useState<NewCertificatePayload>({
@@ -119,7 +149,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [securitySuccess, setSecuritySuccess] = useState(false);
   const [securityError, setSecurityError] = useState('');
 
-  // Load records on modal open
+  // Load records & queries on modal open
   useEffect(() => {
     if (isOpen) {
       const creds = getSupabaseCredentials();
@@ -131,6 +161,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
       if (isAuthenticated) {
         loadRecords();
+        loadQueries();
       }
     }
   }, [isOpen, isAuthenticated]);
@@ -167,16 +198,130 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     }
   };
 
+  const loadQueries = async () => {
+    setIsLoadingQueries(true);
+    try {
+      const res = await fetchAllStudentQueries();
+      setQueries(res.queries);
+      if (isSupabaseReady()) {
+        syncAllQueriesToSupabase().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Failed to load student queries:', e);
+    } finally {
+      setIsLoadingQueries(false);
+    }
+  };
+
+  const handleUpdateQueryStatus = async (id: string, newStatus: 'NEW' | 'CONTACTED' | 'RESOLVED' | 'ARCHIVED') => {
+    try {
+      await updateStudentQueryStatus(id, newStatus);
+      await loadQueries();
+      if (selectedQueryDetail && selectedQueryDetail.id === id) {
+        setSelectedQueryDetail({ ...selectedQueryDetail, status: newStatus });
+      }
+    } catch (err) {
+      console.error('Failed to update query status:', err);
+    }
+  };
+
+  const handleSaveNotes = async (id: string) => {
+    try {
+      await updateStudentQueryStatus(id, queries.find(q => q.id === id)?.status || 'NEW', editingNotesText);
+      setEditingNotesId(null);
+      await loadQueries();
+      if (selectedQueryDetail && selectedQueryDetail.id === id) {
+        setSelectedQueryDetail({ ...selectedQueryDetail, admin_notes: editingNotesText });
+      }
+    } catch (err) {
+      console.error('Failed to save notes:', err);
+    }
+  };
+
+  const handleDeleteQueryItem = async (id: string) => {
+    if (confirm('Are you sure you want to delete this student query record?')) {
+      try {
+        await deleteStudentQuery(id);
+        await loadQueries();
+        if (selectedQueryDetail && selectedQueryDetail.id === id) {
+          setSelectedQueryDetail(null);
+        }
+      } catch (err) {
+        console.error('Failed to delete query:', err);
+      }
+    }
+  };
+
+  const handleSyncQueriesToSupabaseCloud = async () => {
+    setIsSyncingQueries(true);
+    setQueriesSyncStatus('Synchronizing all student requests to Supabase table `student_queries`...');
+    try {
+      const res = await syncAllQueriesToSupabase();
+      if (res.success) {
+        setQueriesSyncStatus(`✅ ${res.message}`);
+        await loadQueries();
+      } else {
+        setQueriesSyncStatus(`⚠️ ${res.message}`);
+      }
+    } catch (err: any) {
+      setQueriesSyncStatus(`❌ Sync error: ${err?.message || 'Network error'}`);
+    } finally {
+      setIsSyncingQueries(false);
+      setTimeout(() => setQueriesSyncStatus(null), 6000);
+    }
+  };
+
+  const handleExportQueries = () => {
+    exportQueriesToCSV(queries);
+  };
+
+  const copyStudentQueryDetails = (query: StudentQuery) => {
+    const text = `STUDENT QUERY DETAILS:
+- ID: ${query.id}
+- Name: ${query.student_name}
+- Email: ${query.email}
+- Phone: ${query.phone || 'N/A'}
+- Subject: ${query.subject}
+- Status: ${query.status}
+- Date: ${new Date(query.created_at).toLocaleString()}
+- Message:
+${query.message}
+- Admin Notes: ${query.admin_notes || 'None'}`;
+    navigator.clipboard.writeText(text);
+    setCopiedQueryId(query.id);
+    setTimeout(() => setCopiedQueryId(null), 2500);
+  };
+
+  const newQueriesCount = queries.filter(q => q.status === 'NEW').length;
+
+  const filteredQueries = queries.filter(q => {
+    const matchesStatus = queriesStatusFilter === 'ALL' || q.status === queriesStatusFilter;
+    const term = queriesSearchQuery.toLowerCase().trim();
+    if (!term) return matchesStatus;
+
+    const matchesSearch = 
+      q.student_name.toLowerCase().includes(term) ||
+      q.email.toLowerCase().includes(term) ||
+      (q.phone && q.phone.toLowerCase().includes(term)) ||
+      q.subject.toLowerCase().includes(term) ||
+      q.message.toLowerCase().includes(term) ||
+      (q.admin_notes && q.admin_notes.toLowerCase().includes(term));
+
+    return matchesStatus && matchesSearch;
+  });
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateAdminLogin(adminIdInput, adminPasswordInput)) {
       setIsAuthenticated(true);
       setAuthError(false);
       loadRecords();
+      loadQueries();
     } else {
       setAuthError(true);
     }
   };
+
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -657,6 +802,26 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>{editingId ? 'Edit Student Record' : 'Add Student Record & QR'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('queries');
+                    setEditingNotesId(null);
+                  }}
+                  className={`px-3.5 py-2 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'queries'
+                      ? 'bg-white text-[#1456A0] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-[#D6A84F]" />
+                  <span>Queries Box ({queries.length})</span>
+                  {newQueriesCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] leading-none">
+                      {newQueriesCount} New
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -1205,6 +1370,433 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB: QUERIES BOX */}
+            {activeTab === 'queries' && (
+              <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                
+                {/* Header & Subtitle */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#0B1F3A] text-[#D6A84F] flex items-center justify-center shrink-0">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 text-base">
+                          Student Queries Box & Admission Desk
+                        </h4>
+                        <p className="text-slate-500 text-xs">
+                          Inquiries, registration requests, and messages submitted by students on the website are synchronized with your Supabase database.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Header */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleSyncQueriesToSupabaseCloud}
+                      disabled={isSyncingQueries}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs disabled:opacity-50"
+                    >
+                      <UploadCloud className={`w-3.5 h-3.5 ${isSyncingQueries ? 'animate-bounce' : ''}`} />
+                      <span>{isSyncingQueries ? 'Syncing to Supabase...' : 'Sync Queries to Supabase'}</span>
+                    </button>
+                    
+                    <button
+                      onClick={handleExportQueries}
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5 cursor-pointer text-xs shadow-2xs"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Export Queries CSV</span>
+                    </button>
+
+                    <button
+                      onClick={loadQueries}
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5 cursor-pointer text-xs shadow-2xs"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingQueries ? 'animate-spin text-[#1456A0]' : ''}`} />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {queriesSyncStatus && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs font-semibold flex items-center justify-between">
+                    <span>{queriesSyncStatus}</span>
+                    <button onClick={() => setQueriesSyncStatus(null)} className="text-blue-600 hover:text-blue-800">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Summary Metrics Bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Inquiries</span>
+                    <span className="text-2xl font-black text-[#0B1F3A]">{queries.length}</span>
+                  </div>
+
+                  <div className="bg-amber-50/60 p-3.5 rounded-xl border border-amber-200 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">New (Action Req.)</span>
+                      {newQueriesCount > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                      )}
+                    </div>
+                    <span className="text-2xl font-black text-amber-900">{newQueriesCount}</span>
+                  </div>
+
+                  <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider block">Contacted</span>
+                    <span className="text-2xl font-black text-[#1456A0]">
+                      {queries.filter(q => q.status === 'CONTACTED').length}
+                    </span>
+                  </div>
+
+                  <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 shadow-2xs">
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">Resolved</span>
+                    <span className="text-2xl font-black text-emerald-700">
+                      {queries.filter(q => q.status === 'RESOLVED').length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filters & Search Toolbar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={queriesSearchQuery}
+                      onChange={(e) => setQueriesSearchQuery(e.target.value)}
+                      placeholder="Search student name, email, phone, subject, message..."
+                      className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 focus:border-[#1456A0] bg-white outline-none"
+                    />
+                  </div>
+
+                  {/* Status Filter Buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(['ALL', 'NEW', 'CONTACTED', 'RESOLVED', 'ARCHIVED'] as const).map(statusKey => (
+                      <button
+                        key={statusKey}
+                        onClick={() => setQueriesStatusFilter(statusKey)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          queriesStatusFilter === statusKey
+                            ? 'bg-[#1456A0] text-white shadow-xs'
+                            : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+                        }`}
+                      >
+                        {statusKey === 'ALL' ? `All (${queries.length})` : statusKey}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Queries List */}
+                {filteredQueries.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80 p-8 space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+                      <MessageSquare className="w-6 h-6" />
+                    </div>
+                    <h5 className="font-bold text-slate-800 text-sm">No Student Inquiries Found</h5>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      {queriesSearchQuery 
+                        ? 'No queries match your search keyword. Try clearing the filter.' 
+                        : 'No student requests have been received yet. Test by submitting the contact form on the website.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredQueries.map(q => (
+                      <div 
+                        key={q.id}
+                        className={`bg-white rounded-xl border transition hover:shadow-sm p-4 space-y-3 ${
+                          q.status === 'NEW' 
+                            ? 'border-amber-300 bg-amber-50/20' 
+                            : 'border-slate-200'
+                        }`}
+                      >
+                        {/* Top Meta Line */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-[#1456A0]/10 text-[#1456A0] font-black text-xs flex items-center justify-center">
+                              {q.student_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-bold text-slate-900 text-sm">{q.student_name}</h5>
+                                <span className="text-[10px] font-mono text-slate-400">#{q.id.slice(0, 8)}</span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                {new Date(q.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Status Dropdown */}
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={q.status}
+                              onChange={(e) => handleUpdateQueryStatus(q.id, e.target.value as any)}
+                              className={`text-xs font-bold px-2.5 py-1 rounded-lg border outline-none cursor-pointer ${
+                                q.status === 'NEW' ? 'bg-amber-100 text-amber-900 border-amber-300' :
+                                q.status === 'CONTACTED' ? 'bg-blue-100 text-blue-900 border-blue-300' :
+                                q.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-900 border-emerald-300' :
+                                'bg-slate-100 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <option value="NEW">🔴 NEW / PENDING</option>
+                              <option value="CONTACTED">🔵 CONTACTED</option>
+                              <option value="RESOLVED">🟢 RESOLVED</option>
+                              <option value="ARCHIVED">⚪ ARCHIVED</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Contact Chips */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <a 
+                            href={`mailto:${q.email}?subject=Regarding Your Qualifi Inquiry: ${encodeURIComponent(q.subject)}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1456A0] rounded-lg transition font-medium border border-slate-200"
+                            title="Click to email student"
+                          >
+                            <Mail className="w-3.5 h-3.5 text-[#1456A0]" />
+                            <span>{q.email}</span>
+                          </a>
+
+                          {q.phone && (
+                            <>
+                              <a 
+                                href={`tel:${q.phone}`}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition font-medium border border-slate-200"
+                                title="Click to call"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-slate-600" />
+                                <span>{q.phone}</span>
+                              </a>
+                              <a 
+                                href={`https://wa.me/${q.phone.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition font-bold border border-emerald-200"
+                                title="Open WhatsApp Chat"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>WhatsApp</span>
+                              </a>
+                            </>
+                          )}
+
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-[#1456A0] font-bold rounded-lg text-[11px] border border-blue-100">
+                            Subject: {q.subject}
+                          </span>
+                        </div>
+
+                        {/* Message Body */}
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs text-slate-800 leading-relaxed font-sans">
+                          <p className="whitespace-pre-wrap">{q.message}</p>
+                        </div>
+
+                        {/* Admin Notes Box */}
+                        {editingNotesId === q.id ? (
+                          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2 text-xs">
+                            <label className="block font-bold text-amber-900 uppercase text-[10px]">
+                              Internal Admin Notes (Private)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingNotesText}
+                              onChange={(e) => setEditingNotesText(e.target.value)}
+                              placeholder="e.g. Sent admission package on WhatsApp. Follow up Friday."
+                              className="w-full px-3 py-1.5 text-xs bg-white rounded-lg border border-amber-300 outline-none"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveNotes(q.id)}
+                                className="px-3 py-1 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-md text-[11px] cursor-pointer"
+                              >
+                                Save Note
+                              </button>
+                              <button
+                                onClick={() => setEditingNotesId(null)}
+                                className="px-3 py-1 bg-white text-slate-600 rounded-md border border-slate-200 text-[11px] cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          q.admin_notes && (
+                            <div className="text-[11px] bg-amber-50/60 p-2.5 rounded-lg border border-amber-200/60 text-amber-900 flex items-start justify-between gap-2">
+                              <span className="leading-snug">
+                                <strong className="text-amber-950 font-semibold">Admin Note:</strong> {q.admin_notes}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditingNotesId(q.id);
+                                  setEditingNotesText(q.admin_notes || '');
+                                }}
+                                className="text-amber-800 hover:underline font-bold text-[10px] shrink-0"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          )
+                        )}
+
+                        {/* Footer Action Buttons */}
+                        <div className="flex items-center justify-between gap-2 pt-1 text-xs border-t border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingNotesId(q.id);
+                                setEditingNotesText(q.admin_notes || '');
+                              }}
+                              className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition font-medium cursor-pointer text-[11px] flex items-center gap-1"
+                            >
+                              <FileText className="w-3 h-3 text-slate-400" />
+                              <span>{q.admin_notes ? 'Edit Note' : '+ Add Note'}</span>
+                            </button>
+
+                            <button
+                              onClick={() => copyStudentQueryDetails(q)}
+                              className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition font-medium cursor-pointer text-[11px] flex items-center gap-1"
+                            >
+                              {copiedQueryId === q.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                              <span>{copiedQueryId === q.id ? 'Copied Details!' : 'Copy Info'}</span>
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setSelectedQueryDetail(q)}
+                              className="px-3 py-1 bg-[#0B1F3A] hover:bg-[#1456A0] text-white font-bold rounded-lg transition cursor-pointer text-[11px]"
+                            >
+                              View Full Query
+                            </button>
+                            <button
+                              onClick={() => handleDeleteQueryItem(q.id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer"
+                              title="Delete Query"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Query Detail Modal Popup */}
+                {selectedQueryDetail && (
+                  <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[#0B1F3A] text-white flex items-center justify-center">
+                            <MessageSquare className="w-4 h-4 text-[#D6A84F]" />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-slate-900 text-sm">Student Inquiry Details</h4>
+                            <span className="text-[11px] font-mono text-slate-500">ID: {selectedQueryDetail.id}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedQueryDetail(null)}
+                          className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 text-xs">
+                        <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <div>
+                            <span className="block font-bold text-slate-500 uppercase text-[10px]">Student Name</span>
+                            <span className="font-extrabold text-slate-900 text-sm">{selectedQueryDetail.student_name}</span>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-500 uppercase text-[10px]">Received Date</span>
+                            <span className="font-semibold text-slate-700">{new Date(selectedQueryDetail.created_at).toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-500 uppercase text-[10px]">Email Address</span>
+                            <span className="font-semibold text-blue-700 break-all">{selectedQueryDetail.email}</span>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-500 uppercase text-[10px]">Phone / WhatsApp</span>
+                            <span className="font-semibold text-slate-800">{selectedQueryDetail.phone || 'Not provided'}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="block font-bold text-slate-700 uppercase text-[10px] mb-1">Subject / Course</span>
+                          <div className="p-2.5 bg-blue-50/70 border border-blue-200 text-[#1456A0] font-bold rounded-lg">
+                            {selectedQueryDetail.subject}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="block font-bold text-slate-700 uppercase text-[10px] mb-1">Full Student Message</span>
+                          <div className="p-3.5 bg-white border border-slate-300 rounded-xl leading-relaxed text-slate-800 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                            {selectedQueryDetail.message}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="block font-bold text-slate-700 uppercase text-[10px] mb-1">Status</span>
+                          <select
+                            value={selectedQueryDetail.status}
+                            onChange={(e) => handleUpdateQueryStatus(selectedQueryDetail.id, e.target.value as any)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 font-bold bg-white text-xs"
+                          >
+                            <option value="NEW">🔴 NEW / PENDING</option>
+                            <option value="CONTACTED">🔵 CONTACTED</option>
+                            <option value="RESOLVED">🟢 RESOLVED</option>
+                            <option value="ARCHIVED">⚪ ARCHIVED</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                        <a
+                          href={`mailto:${selectedQueryDetail.email}?subject=Regarding Your Qualifi Inquiry: ${encodeURIComponent(selectedQueryDetail.subject)}`}
+                          className="flex-1 py-2 bg-[#1456A0] hover:bg-[#0B1F3A] text-white font-bold rounded-xl text-center transition flex items-center justify-center gap-1.5 text-xs shadow-xs"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-[#D6A84F]" />
+                          <span>Reply via Email</span>
+                        </a>
+
+                        {selectedQueryDetail.phone && (
+                          <a
+                            href={`https://wa.me/${selectedQueryDetail.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-center transition flex items-center justify-center gap-1.5 text-xs shadow-xs"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>WhatsApp Chat</span>
+                          </a>
+                        )}
+
+                        <button
+                          onClick={() => copyStudentQueryDetails(selectedQueryDetail)}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy Info</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
