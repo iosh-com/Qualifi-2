@@ -1398,6 +1398,19 @@ ${query.message}
                   {/* Actions Header */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(SUPABASE_FIX_COLUMNS_SQL);
+                        setQueriesSyncStatus('📋 Copied SQL schema script to clipboard! Paste it into your Supabase SQL Editor and click Run.');
+                        setTimeout(() => setQueriesSyncStatus(null), 8000);
+                      }}
+                      className="px-3 py-1.5 bg-[#0B1F3A] hover:bg-[#1456A0] text-amber-300 font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer text-xs shadow-2xs border border-amber-400/30"
+                      title="Copy SQL to create student_queries table in Supabase"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Supabase SQL</span>
+                    </button>
+
+                    <button
                       onClick={handleSyncQueriesToSupabaseCloud}
                       disabled={isSyncingQueries}
                       className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs disabled:opacity-50"
@@ -1425,10 +1438,38 @@ ${query.message}
                 </div>
 
                 {queriesSyncStatus && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs font-semibold flex items-center justify-between">
-                    <span>{queriesSyncStatus}</span>
-                    <button onClick={() => setQueriesSyncStatus(null)} className="text-blue-600 hover:text-blue-800">
-                      <X className="w-3.5 h-3.5" />
+                  <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-start justify-between gap-3 border ${
+                    queriesSyncStatus.startsWith('❌') || queriesSyncStatus.includes('error') || queriesSyncStatus.includes('Could not find')
+                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      : queriesSyncStatus.startsWith('📋') || queriesSyncStatus.startsWith('✅')
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                  }`}>
+                    <div className="space-y-1">
+                      <span>{queriesSyncStatus}</span>
+                      {(queriesSyncStatus.includes('Could not find the table') || queriesSyncStatus.includes('student_queries')) && (
+                        <div className="pt-1 flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(SUPABASE_FIX_COLUMNS_SQL);
+                              setQueriesSyncStatus('📋 Copied table creation SQL to clipboard! Open Supabase -> SQL Editor -> Paste and click "Run".');
+                            }}
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[11px] font-bold inline-flex items-center gap-1"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>Copy SQL to Create Table</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('supabase_sql')}
+                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[11px] font-bold"
+                          >
+                            Open SQL Schema Tab
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => setQueriesSyncStatus(null)} className="text-slate-400 hover:text-slate-700 p-1">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
