@@ -76,12 +76,12 @@ export const Logo: React.FC<LogoProps> = ({
         
         {showSubtitle && (
           <span
-            className={`font-semibold uppercase tracking-wider mt-0.5 ${subSize} ${
-              isLight ? 'text-blue-200' : isCert ? 'text-[#0B1F3A] font-bold' : 'text-[#1456A0]'
+            className={`font-bold uppercase tracking-wider mt-0.5 ${subSize} ${
+              isLight ? 'text-blue-200' : isCert ? 'text-[#0B1F3A]' : 'text-slate-600'
             }`}
-            style={{ letterSpacing: '0.06em' }}
+            style={{ letterSpacing: '0.08em' }}
           >
-            Health & Safety Training Centre
+            Safety | Health | Environment
           </span>
         )}
       </div>

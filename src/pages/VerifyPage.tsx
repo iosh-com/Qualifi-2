@@ -132,11 +132,11 @@ export const VerifyPage: React.FC<VerifyPageProps> = ({ onViewFullCertificate })
           </div>
 
           <a
-            href="mailto:hiqual.com.uk@gmail.com?subject=Certificate%20Verification%20Inquiry"
+            href="mailto:qualifiuk@gmail.com?subject=Certificate%20Verification%20Inquiry"
             className="px-6 py-3 bg-[#1456A0] hover:bg-[#0B1F3A] text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-2 shrink-0 cursor-pointer"
           >
             <Mail className="w-4 h-4 text-[#D6A84F]" />
-            <span>hiqual.com.uk@gmail.com</span>
+            <span>qualifiuk@gmail.com</span>
           </a>
         </div>
       </section>

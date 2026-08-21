@@ -28,7 +28,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ type, onClose }) => {
           </p>
           <h4 className="font-bold text-slate-900 text-sm">3. Fraud Prevention & Discrepancies</h4>
           <p>
-            Any physical certificate bearing altered text, missing verifiable QR codes, or mismatched certificate numbers is considered null and void. Suspected fraudulent submissions should be reported immediately to <strong>hiqual.com.uk@gmail.com</strong>.
+            Any physical certificate bearing altered text, missing verifiable QR codes, or mismatched certificate numbers is considered null and void. Suspected fraudulent submissions should be reported immediately to <strong>qualifiuk@gmail.com</strong>.
           </p>
         </div>
       )
@@ -51,7 +51,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ type, onClose }) => {
           </p>
           <h4 className="font-bold text-slate-900 text-sm">3. Right to Access & Correction</h4>
           <p>
-            Candidates have the right to inspect their records and request corrections by contacting our data officer at <strong>hiqual.com.uk@gmail.com</strong>.
+            Candidates have the right to inspect their records and request corrections by contacting our data officer at <strong>qualifiuk@gmail.com</strong>.
           </p>
         </div>
       )
@@ -74,7 +74,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ type, onClose }) => {
           </p>
           <h4 className="font-bold text-slate-900 text-sm">3. Support & Inquiries</h4>
           <p>
-            Official inquiries regarding training schedules or verification queries may be directed to <strong>hiqual.com.uk@gmail.com</strong>.
+            Official inquiries regarding training schedules or verification queries may be directed to <strong>qualifiuk@gmail.com</strong>.
           </p>
         </div>
       )

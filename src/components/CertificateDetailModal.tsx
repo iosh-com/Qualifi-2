@@ -188,7 +188,7 @@ export const CertificateDetailModal: React.FC<CertificateDetailModalProps> = ({
         {/* Modal Bottom Action Bar */}
         <div className="no-print bg-slate-100 px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200">
           <div className="text-xs text-slate-600">
-            For credential verification inquiries: <a href="mailto:hiqual.com.uk@gmail.com" className="text-[#1456A0] font-semibold underline">hiqual.com.uk@gmail.com</a>
+            For credential verification inquiries: <a href="mailto:qualifiuk@gmail.com" className="text-[#1456A0] font-semibold underline">qualifiuk@gmail.com</a>
           </div>
           <div className="flex items-center gap-3">
             <button

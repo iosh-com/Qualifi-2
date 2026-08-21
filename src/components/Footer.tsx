@@ -139,8 +139,8 @@ export const Footer: React.FC<FooterProps> = ({
                 <Mail className="w-4 h-4 text-[#D6A84F] shrink-0 mt-0.5" />
                 <div>
                   <span className="block text-[11px] text-slate-400">Official Correspondence:</span>
-                  <a href="mailto:hiqual.com.uk@gmail.com" className="text-white hover:underline font-medium">
-                    hiqual.com.uk@gmail.com
+                  <a href="mailto:qualifiuk@gmail.com" className="text-white hover:underline font-medium">
+                    qualifiuk@gmail.com
                   </a>
                 </div>
               </div>

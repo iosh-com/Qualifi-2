@@ -410,7 +410,7 @@ export const CertificateVerificationCard: React.FC<CertificateVerificationCardPr
                       <ul className="list-disc list-inside space-y-0.5 text-rose-800">
                         <li>Ensure all letters and hyphens are typed correctly (e.g. <code>QHSTC-2026-00001</code>).</li>
                         <li>If the certificate was added recently, please ensure it was saved to the central registry.</li>
-                        <li>For manual verification assistance, contact our registry at <a href="mailto:hiqual.com.uk@gmail.com" className="underline font-semibold">hiqual.com.uk@gmail.com</a>.</li>
+                        <li>For manual verification assistance, contact our registry at <a href="mailto:qualifiuk@gmail.com" className="underline font-semibold">qualifiuk@gmail.com</a>.</li>
                       </ul>
                     </div>
                   </div>

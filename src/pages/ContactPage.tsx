@@ -79,10 +79,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({ initialSubject = '' })
                 <p className="text-xs text-slate-500 mt-0.5">For student registrations & official letters</p>
               </div>
               <a
-                href="mailto:hiqual.com.uk@gmail.com"
+                href="mailto:qualifiuk@gmail.com"
                 className="font-semibold text-sm text-[#1456A0] hover:underline block break-all"
               >
-                hiqual.com.uk@gmail.com
+                qualifiuk@gmail.com
               </a>
             </div>
 
@@ -113,7 +113,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ initialSubject = '' })
                 If you require manual employer verification, historical award confirmation, or batch employee validation, please email our registry directly with the student name and certificate number.
               </p>
               <a
-                href="mailto:hiqual.com.uk@gmail.com?subject=Manual%20Certificate%20Verification%20Request"
+                href="mailto:qualifiuk@gmail.com?subject=Manual%20Certificate%20Verification%20Request"
                 className="inline-block text-xs font-bold text-[#D6A84F] hover:underline"
               >
                 Submit Verification Request →

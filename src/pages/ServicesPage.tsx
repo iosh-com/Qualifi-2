@@ -132,10 +132,10 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate, onEnquir
                 Schedule Corporate Consultation
               </button>
               <a
-                href="mailto:hiqual.com.uk@gmail.com"
+                href="mailto:qualifiuk@gmail.com"
                 className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition"
               >
-                Email: hiqual.com.uk@gmail.com
+                Email: qualifiuk@gmail.com
               </a>
             </div>
           </div>
