@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldCheck, 
   ArrowRight, 
@@ -22,17 +22,25 @@ import {
   Presentation,
   Check,
   Shield,
-  Heart
+  Heart,
+  Eye,
+  Flame,
+  HeartPulse
 } from 'lucide-react';
 import { CertificateVerificationCard } from '../components/CertificateVerificationCard';
+import { TrainingGallerySection } from '../components/TrainingGallerySection';
+import { TrainingGalleryModal } from '../components/TrainingGalleryModal';
+import { TRAINING_GALLERY_DATA } from '../data/trainingGalleryData';
 import { ALL_COURSES } from '../data/coursesData';
-import { ActivePage, Certificate, Course } from '../types';
+import { ActivePage, Certificate, Course, TrainingPhotoItem } from '../types';
 import { DynamicIcon } from '../components/DynamicIcon';
 
 // Generated imagery matching user references
 import heroSphereImg from '../assets/images/hero_qualifi_sphere_1787299768063.jpg';
 import classroomSessionImg from '../assets/images/classroom_hse_session_1787299784988.jpg';
 import hsePrinciplesImg from '../assets/images/hse_principles_meeting_1787299809908.jpg';
+import fireSafetyImg from '../assets/images/fire_safety_training_1787408392662.jpg';
+import firstAidImg from '../assets/images/first_aid_training_1787408415166.jpg';
 
 interface HomePageProps {
   onNavigate: (page: ActivePage) => void;
@@ -46,12 +54,35 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSelectCourse
 }) => {
   const featuredCourses = ALL_COURSES.slice(0, 6);
+  const [activeHeroPhoto, setActiveHeroPhoto] = useState<0 | 1>(0);
+  const [selectedGalleryItem, setSelectedGalleryItem] = useState<TrainingPhotoItem | null>(null);
+
+  const heroPhotos = [
+    {
+      title: "Live Fire Suppression Drill",
+      tagline: "P.A.S.S. Live Fire Extinguisher Technique",
+      image: fireSafetyImg,
+      badge: "LIVE PRACTICAL DRILL",
+      badgeColor: "bg-rose-600",
+      galleryId: "fire-extinguisher-pass"
+    },
+    {
+      title: "First Aid & CPR Life Support",
+      tagline: "Mannequin Chest Compression & AED Response",
+      image: firstAidImg,
+      badge: "EMERGENCY LIFE SUPPORT",
+      badgeColor: "bg-emerald-600",
+      galleryId: "first-aid-cpr-emergency"
+    }
+  ];
+
+  const currentHeroPhoto = heroPhotos[activeHeroPhoto];
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-16 bg-slate-50/50">
       
       {/* ========================================================================= */}
-      {/* 1. FRONT HERO SECTION (MATCHING FRONTEND DESIGN REFERENCE)                */}
+      {/* 1. FRONT HERO SECTION (WITH DYNAMIC TRAINING SHOWCASE)                     */}
       {/* ========================================================================= */}
       <section className="relative bg-[#061324] text-white min-h-[580px] lg:min-h-[660px] flex flex-col justify-between overflow-hidden">
         
@@ -73,7 +104,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">
             
             {/* Left Headline Area */}
-            <div className="lg:col-span-8 space-y-6 text-left">
+            <div className="lg:col-span-7 space-y-6 text-left">
               
               {/* Brand Emblem Tag */}
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-black/40 border border-white/15 backdrop-blur-md text-[11px] font-bold tracking-widest text-[#F5B301] uppercase">
@@ -115,6 +146,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <ShieldCheck className="w-5 h-5 text-[#F5B301]" />
                   <span>VERIFY CERTIFICATE</span>
                 </button>
+
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('training-workshops-gallery');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-5 py-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs sm:text-sm tracking-wide border border-amber-400/30 backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <HardHat className="w-4 h-4 text-amber-400" />
+                  <span>VIEW 10+ WORKSHOPS</span>
+                </button>
               </div>
 
               {/* Bottom Left 3 Value Badges: SAFETY, HEALTH, ENVIRONMENT */}
@@ -155,43 +197,103 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             </div>
 
-            {/* Right Floating Card: OUR COMMITMENT */}
-            <div className="lg:col-span-4 lg:flex justify-end hidden">
-              <div className="w-full max-w-xs bg-black/40 backdrop-blur-md rounded-2xl border border-white/15 p-6 shadow-2xl space-y-4">
-                <div className="border-b border-white/10 pb-3">
-                  <h3 className="text-xs font-black tracking-widest text-[#F5B301] uppercase">
-                    OUR COMMITMENT
-                  </h3>
-                </div>
-
-                <div className="space-y-4 text-sm font-semibold text-slate-100">
-                  <div className="flex items-center gap-3.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-9 h-9 rounded-lg bg-amber-500/20 text-[#F5B301] flex items-center justify-center">
-                      <HardHat className="w-5 h-5" />
-                    </div>
-                    <span>Work Safely</span>
+            {/* Right Front Interactive Showcase Card: REAL FIELD WORKSHOPS */}
+            <div className="lg:col-span-5 flex justify-end">
+              <div className="w-full max-w-md bg-black/60 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/20 p-5 shadow-2xl space-y-4 relative group">
+                
+                {/* Header bar of showcase card */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <h3 className="text-xs font-black tracking-widest text-[#F5B301] uppercase">
+                      PRACTICAL FIELD SESSIONS
+                    </h3>
                   </div>
-
-                  <div className="flex items-center gap-3.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-9 h-9 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                    <span>Stay Alert</span>
-                  </div>
-
-                  <div className="flex items-center gap-3.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                      <Leaf className="w-5 h-5" />
-                    </div>
-                    <span>Protect Environment</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 text-center">
-                  <span className="inline-block text-[11px] font-bold text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30">
-                    Zero Harm. Every Day.
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    CLICK TO ENLARGE
                   </span>
                 </div>
+
+                {/* Interactive Featured Photo Box */}
+                <div 
+                  onClick={() => {
+                    const found = TRAINING_GALLERY_DATA.find(i => i.id === currentHeroPhoto.galleryId);
+                    if (found) setSelectedGalleryItem(found);
+                  }}
+                  className="relative aspect-16/10 rounded-xl overflow-hidden cursor-pointer border border-white/20 shadow-lg group/img"
+                >
+                  <img 
+                    src={currentHeroPhoto.image} 
+                    alt={currentHeroPhoto.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-108"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                  
+                  {/* Badge */}
+                  <div className="absolute top-2.5 left-2.5 z-10">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider text-white shadow-md ${currentHeroPhoto.badgeColor}`}>
+                      {currentHeroPhoto.badge}
+                    </span>
+                  </div>
+
+                  {/* Quick Expand Icon */}
+                  <div className="absolute top-2.5 right-2.5 w-8 h-8 rounded-lg bg-black/60 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity z-10">
+                    <Eye className="w-4 h-4 text-amber-300" />
+                  </div>
+
+                  {/* Bottom Captions */}
+                  <div className="absolute bottom-2.5 left-3 right-3 z-10 space-y-0.5">
+                    <h4 className="text-sm font-black text-white group-hover/img:text-amber-300 transition-colors truncate">
+                      {currentHeroPhoto.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-300 truncate">
+                      {currentHeroPhoto.tagline}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Switcher Tabs for 2 Hero Photos */}
+                <div className="grid grid-cols-2 gap-2">
+                  {heroPhotos.map((photo, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveHeroPhoto(idx as 0 | 1)}
+                      className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex items-center gap-2 ${
+                        activeHeroPhoto === idx
+                          ? 'bg-white/15 border-amber-400/60 shadow-xs'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+                        <img src={photo.image} alt={photo.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="truncate">
+                        <span className="block text-[11px] font-bold text-white truncate">
+                          {photo.title.split(' ')[0]} {photo.title.split(' ')[1]}
+                        </span>
+                        <span className="block text-[9px] text-slate-400 truncate">
+                          Photo {idx + 1}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* 3 Core Commitment Badges at Bottom */}
+                <div className="pt-2 grid grid-cols-3 gap-2 border-t border-white/10 text-center">
+                  <div className="p-1.5 rounded-lg bg-white/5 text-[10px] font-semibold text-slate-200">
+                    <span className="block text-amber-300 font-bold">✓ Work</span> Safely
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/5 text-[10px] font-semibold text-slate-200">
+                    <span className="block text-cyan-300 font-bold">✓ Stay</span> Alert
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/5 text-[10px] font-semibold text-slate-200">
+                    <span className="block text-emerald-300 font-bold">✓ Protect</span> Earth
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -265,7 +367,14 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. CLASSROOM & EXECUTIVE HSE TRAINING SESSIONS (MATCHING IMAGE 2)         */}
+      {/* 3. PRACTICAL FIELD & WORKSHOP PHOTO GALLERY (ALL 10 MODULES)              */}
+      {/* ========================================================================= */}
+      <TrainingGallerySection
+        onNavigateToContact={(subject) => onNavigate('contact')}
+      />
+
+      {/* ========================================================================= */}
+      {/* 4. CLASSROOM & EXECUTIVE HSE TRAINING SESSIONS                            */}
       {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
@@ -627,6 +736,26 @@ export const HomePage: React.FC<HomePageProps> = ({
           </a>
         </div>
       </section>
+
+      {/* Hero-Triggered Gallery Lightbox Modal */}
+      {selectedGalleryItem && (
+        <TrainingGalleryModal
+          item={selectedGalleryItem}
+          allItems={TRAINING_GALLERY_DATA}
+          onClose={() => setSelectedGalleryItem(null)}
+          onSelectNext={() => {
+            const currentIndex = TRAINING_GALLERY_DATA.findIndex(i => i.id === selectedGalleryItem.id);
+            const nextIndex = (currentIndex + 1) % TRAINING_GALLERY_DATA.length;
+            setSelectedGalleryItem(TRAINING_GALLERY_DATA[nextIndex]);
+          }}
+          onSelectPrev={() => {
+            const currentIndex = TRAINING_GALLERY_DATA.findIndex(i => i.id === selectedGalleryItem.id);
+            const prevIndex = (currentIndex - 1 + TRAINING_GALLERY_DATA.length) % TRAINING_GALLERY_DATA.length;
+            setSelectedGalleryItem(TRAINING_GALLERY_DATA[prevIndex]);
+          }}
+          onNavigateToContact={(subject) => onNavigate('contact')}
+        />
+      )}
 
     </div>
   );

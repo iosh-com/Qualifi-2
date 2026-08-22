@@ -58,6 +58,24 @@ export interface ServiceItem {
   iconName: string;
 }
 
+export interface TrainingPhotoItem {
+  id: string;
+  title: string;
+  shortTitle: string;
+  category: 'field' | 'emergency' | 'industrial' | 'classroom';
+  categoryLabel: string;
+  image: string;
+  tagline: string;
+  description: string;
+  keyOutcomes: string[];
+  standards: string[];
+  equipmentPPE: string[];
+  duration: string;
+  locationType: string;
+  badgeColor: string;
+  featuredAtFront?: boolean;
+}
+
 export type ActivePage = 'home' | 'verify' | 'courses' | 'about' | 'services' | 'contact';
 
 export interface StudentQuery {

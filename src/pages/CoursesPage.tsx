@@ -9,11 +9,13 @@ import {
   BookOpen, 
   Layers,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  HardHat
 } from 'lucide-react';
 import { ALL_COURSES } from '../data/coursesData';
 import { Course } from '../types';
 import { DynamicIcon } from '../components/DynamicIcon';
+import { TrainingGallerySection } from '../components/TrainingGallerySection';
 
 interface CoursesPageProps {
   onSelectCourse: (course: Course) => void;
@@ -188,6 +190,13 @@ export const CoursesPage: React.FC<CoursesPageProps> = ({ onSelectCourse, onEnqu
           </div>
         )}
       </section>
+
+      {/* Practical Training Workshop & Simulation Gallery */}
+      <TrainingGallerySection
+        onNavigateToContact={onEnquire}
+        title="PRACTICAL WORKSHOPS & SIMULATION GALLERY"
+        subtitle="Explore Hands-On Field Drills, PPE Inspections & Live Safety Competency Evaluations"
+      />
 
       {/* Corporate Group Booking Note */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6">

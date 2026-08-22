@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { ALL_SERVICES } from '../data/servicesData';
 import { DynamicIcon } from '../components/DynamicIcon';
+import { TrainingGallerySection } from '../components/TrainingGallerySection';
 import { ActivePage } from '../types';
 
 interface ServicesPageProps {
@@ -110,6 +111,13 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigate, onEnquir
           })}
         </div>
       </section>
+
+      {/* Practical Workshop Gallery */}
+      <TrainingGallerySection
+        onNavigateToContact={onEnquireService}
+        title="LIVE PRACTICAL SAFETY WORKSHOPS"
+        subtitle="Explore Real-World Drills, Lockout-Tagout Stations, Live Fire Demonstrations & First Aid Simulations"
+      />
 
       {/* Corporate Safety Partnership Banner */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6">
